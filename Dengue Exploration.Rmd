@@ -1,0 +1,469 @@
+---
+title: "Dengue Data Exploration"
+author: "Elisabeth Nelson"
+date: "2022-10-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# set the libraries
+library(dplyr)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(maptools)
+library(spdep)
+library(rgeos)
+library(sp)
+library(MASS)
+library(surveillance)
+library(tidyr)
+library(splines)
+library(tidyverse)
+library(tsibble)
+
+```
+
+
+## Import the Data
+```{r}
+# import the data
+library(readxl)
+MDR_Dengue_Cases <- read_excel("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/OneDrive_1_9-16-2022/MDR Dengue Cases.xlsx")
+
+# change the variable structures
+MDR_Dengue_Cases <- MDR_Dengue_Cases %>%
+  mutate(district = as.factor(district)) %>%
+  mutate(district_code = as.factor(district_code)) %>%
+  mutate(province = as.factor(province)) %>%
+  mutate(total_DHF_cases = as.numeric(total_DHF_cases)) 
+  
+str(MDR_Dengue_Cases)
+
+MDR_Dengue_Cases %>% 
+     sapply(levels)
+
+charToRaw(as.character(MDR_Dengue_Cases$district))
+
+rawToChar(MA$HUYEN)
+
+```
+
+## An Giang Province
+```{r}
+
+an_giang_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "An Giang") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+
+an_giang_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "An Giang Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+
+```
+
+## Bac Lieu Province
+```{r}
+
+bac_lieu_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Bac Lieu") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+bac_lieu_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Bac Lieu Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+  
+
+
+```
+## Ben Tre Province
+```{r}
+
+ben_tre_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Ben Tre") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+ben_tre_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Ben Tre Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+
+```
+## Ca Mau Province
+```{r}
+
+ca_mau_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Ca Mau") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+ca_mau_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Ca Mau Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+
+```
+
+## Can Tho Province
+```{r}
+
+can_tho_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Can Tho") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+can_tho_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Can Tho Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+
+```
+
+## Dong Thap Province
+```{r}
+
+dong_thap_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Dong Thap") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+dong_thap_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Dong Thap Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+```
+
+## Hau Giang Province
+```{r}
+
+hau_giang_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Hau Giang") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+hau_giang_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Hau Giang Province DHF Cases 2004 - 2018", x = "Year", y = "Total DHF Cases")
+
+
+```
+
+## Kien Giang Province
+```{r}
+
+kien_giang_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Kien Giang") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+kien_giang_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Kien Giang Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+
+```
+
+## Long An Province
+```{r}
+
+long_an_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Long An") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+long_an_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Long An Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+
+```
+
+## Soc Trang Province
+```{r}
+
+soc_trang_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Soc Trang") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+soc_trang_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Soc Trang Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+
+```
+
+## Tien Giang Province
+```{r}
+
+tien_giang_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Tien Giang") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+tien_giang_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Tien Giang Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+
+```
+
+## Tra Vinh Province
+```{r}
+
+tra_vinh_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Tra Vinh") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+tra_vinh_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Tra Vinh Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+
+```
+
+## Vinh Long Province
+```{r}
+
+vinh_long_cases_by_year <- MDR_Dengue_Cases %>%
+  filter(province == "Vinh Long") %>%
+  group_by(year) %>%
+  summarize(year_total = sum(total_DHF_cases))
+  
+vinh_long_cases_by_year %>%
+  ggplot(aes(x = year, y = year_total))+
+  geom_bar(stat = "identity")+
+  geom_jitter(width = 0.15)+
+  theme(axis.text.x = element_text(angle = 90))+
+  labs(title = "Vinh Long Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
+
+#without splines
+x_vl <- vinh_long_cases_by_year$year
+y_vl <- vinh_long_cases_by_year$year_total
+y.lab_vl <- 'Total Annual DHF Cases'
+x.lab_vl <- 'Year'
+plot(x_vl, y_vl, cex.lab = 1.1, col="darkgrey", xlab = x.lab_vl, ylab = y.lab_vl,
+     main = "", bty = 'l', type = "l")
+
+#with splines
+library(stats); library(splines); library(gam); library(dlnm)
+
+fit_vl <- gam::gam(year_total ~ year + s(year, 7*18), family = quasipoisson, data = vinh_long_cases_by_year)
+pr_vl <- predict(fit_vl, type = "terms")
+plot(x, pr_vl[, 2], type = "l", lty =2, ylim = range(pr, na.rm = TRUE), ylab = "", xlab = "")
+
+
+ggplot(vinh_long_cases_by_year, aes(x = year, y = year_total))+
+  geom_line()
+
+```
+
+## Time Series 
+```{r}
+#without splines
+x <- MDR_Dengue_Cases$year
+y <- MDR_Dengue_Cases$total_DHF_cases
+y.lab <- 'Total Annual DHF Cases'
+x.lab <- 'Year'
+plot(x, y, cex.lab = 1.1, col="darkgrey", xlab = x.lab, ylab = y.lab,
+     main = "", bty = 'l')
+
+#with splines
+library(stats); library(splines); library(gam); library(dlnm)
+
+fit <- gam::gam(total_DHF_cases ~ year + s(year, 7*18), family = quasipoisson, data = MDR_Dengue_Cases)
+pr <- predict(fit, type = "terms")
+x1 <- seq(as.Date("2001-01-01"), as.Date("2018-12-12"), "year")
+plot(x, pr[, 2], type = "l", lty =2, ylim = range(pr, na.rm = TRUE), ylab = "", xlab = "")
+
+
+ggplot(MDR_Dengue_Cases, aes(x = year, y = total_DHF_cases))+
+  geom_line()
+
+
+
+```
+
+
+
+
+## Get Province Map
+```{r}
+
+#Reading in the Shapefile
+setwd("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/OneDrive_1_9-16-2022")
+
+MA<-readShapeSpatial('./MDR District Map/DBSCL_Ranh gioi_vung_region.shp')  
+
+plot(MA)
+
+#MA2 <- fortify(MA)
+
+#geom_polygon(data = MA, fill = NA, color = 'black', alpha = 0, na.rm = FALSE)
+
+```
+
+## Map DHF Incidence Data 
+```{r}
+
+
+#library(haven)
+#MKhuyencoord <- read_dta("MDR District Map/MKhuyencoord.dta")
+#library(haven)
+#MKhuyendb <- read_dta("MDR District Map/MKhuyendb.dta", fileEncoding = "UTF-8")
+
+#district_map <- iconv(district_map, "Unkown", "UTF-8")
+
+#district_map <- st_read(dsn = './MDR District Map/DBSCL_Ranh gioi_vung_region.shp', encoding = "UTF-8") 
+
+#district_map_HUYEN <- c(district_map$HUYEN)
+#district_map_HUYEN
+#district_map_HUYEN <- decodeVN(district_map_HUYEN, diacritics = FALSE)
+#district_map <- decodeVN(district_map$HUYEN, diacritics = FALSE)
+
+
+
+#district_map <- mutate(district_map, district = as.character(HUYEN))
+#MDR_Dengue_Cases_for_map <- left_join(district_map, MDR_Dengue_Cases, by = c("district" = "district"))
+
+
+
+```
+
+$district
+  [1] "An Biên"           "An Minh"           "An Phú"            
+  "Ba Tri"            "Bạc Liêu"          "Bến Lức"           "Bến Tre"          
+  [8] "Bình Đại"          "Bình Minh"         "Bình Tân"          "Bình Thủy"         
+  
+  "Cà Mau"                   
+ [15]           "Cái Răng"          "Cần Đước"        "Cần Thơ"                          
+ [22]                     "Châu Đốc"                             
+ [29]=                    "Cờ Đỏ"                   
+ 
+ "Đầm Dơi"           "Đông Hải"          "Đức Hòa"          
+ [36] "Đức Huệ"           "Duyên Hải"         
+ 
+ "Giá Rai"           "Giang Thành"       "Giồng Riềng"       "Giồng Trôm"        "Gò Công"          
+ [43] "Gò Công Đông"      "Gò Công Tây"       "Gò Quao"           
+ 
+ "H. Vĩnh Lợi"       "Hà Tiên"           "Hoà Bình"          "Hòn Đất"          
+ [50] "Hồng Dân"          "Hồng Ngự"          
+ 
+ "Kế Sách"           "Kiên Hải"          "Kiên Lương"        "Kiến Tường"        
+ 
+ "Lai Vung"         
+ [57] "Lấp Vò"            "Long Hồ"           "Long Mỹ"           "Long Phú"          "Long Xuyên"        
+ 
+ "Mang Thít"         "Mỏ Cày"           
+ [64] "Mỏ Cày Bắc"        "Mỏ Cày Nam"        "Mỏ Cày/Mỏ Cày Nam" "Mộc Hóa"           "Mỹ Tho"            "Mỹ Tú"             "Mỹ Xuyên"         
+ [71] 
+ 
+ "Năm Căn"           "Ngã Bảy"           "Ngã Năm"           "Ngọc Hiển"         "Ninh Kiều"         
+
+ "Ô Môn"            
+ 
+ "Phong Điền"       
+ [78] "Phú Quốc"          "Phú Tân"           "Phụng Hiệp"        "Phước Long"        "Rạch Giá"          "Sa Đéc"            "Sóc Trăng"        
+ [85] "Tam Bình"          "Tam Nông"          "Tân An"            "Tân Châu"          "Tân Hiệp"          "Tân Hồng"          "Tân Hưng"         
+ [92] "Tân Phú Đông"      "Tân Phước"         "Tân Thạnh"         "Tân Trụ"           "Thanh Bình"        "Thạnh Hóa"         "Thạnh Phú"        
+ [99] "Thạnh Trị"         "Tháp Mười"         "Thoại Sơn"         "Thới Bình"         "Thới Lai"          "Thốt Nốt"          "Thủ Thừa"         
+[106] "Tiêu Cần"          "Tiểu Cần"          "Tịnh Biên"         "TP. Cao Lãnh"      "Trà Cú"            "Trà Ôn"            "Trà Vinh"         
+[113] "Trần Đề"           "Trần Văn Thời"     "Tri Tôn"           "TX. Cai Lậy"       "TX. Cao Lãnh"      "TX. Duyên Hải"     "TX. Hồng Ngự"     
+[120] "TX. Long Mỹ"       "U Minh"            "U Minh Thượng"     "Vị Thanh"          "Vị Thủy"           "Vĩnh Châu"         "Vĩnh Hưng"        
+[127] "Vĩnh Lợi"          "Vĩnh Long"         "Vĩnh Thạnh"        "Vĩnh Thuận"        "Vũng Liêm" 
+
+"An Bi\xaan" = "An Biên" 
+"An Minh" = "An Minh" 
+"An Ph\xf3"= "An Phú"
+"B\xd7nh \xa7\xb9i" = "Bình Đại"
+"Ba Tri" = "Ba Tri"
+"B\xd5n L\xf8c" = "Bạc Liêu" or "Bến Lức"
+"B\xd7nh T\xa9n" = "Bến Tre"
+"C\xabn \xa7\xb6o" 
+"Ch\xa9u Th\xb5nh" = "Châu Thành"
+"Ch\xee M\xedi" = "Chợ Mới" 
+"C\xc7u K\xcc" = "Cầu Kè"
+"Cao L\xb7nh" = "Cao Lãnh"
+"C\xc7n \xa7\xad\xedc"
+"C\xef Lao Dung" = "Cù Lao Dung"
+ "Cai L\xcby" = "Cai Lậy" 
+ "C\xc7n Giu\xe9c" = "Cần Giuộc"
+ "Ch\xa9u Ph\xf3" = "Châu Phú"
+ "Ch\xee g\xb9o" = "Chợ Gạo"
+ "C\xb8i B\xcc" = "Cái Bè"
+ "Ch\xee L\xb8ch" = "Chợ Lách"
+ "C\xb5ng Long" = "Càng Long"             
+  "C\xb8i N\xad\xedc" = "Cầu Ngang" or "Cái Nước"
+  "Ch\xa9u Th\xb5nh A" = "Châu Thành A" 
+  "C\xea \xa7\xe1" 
+
+  [1]         "TP. T\xa9n An"            "T\xa9n H\xadng"           "M\xe9c Ho\xb8"            "T\xa9n Th\xb9nh"         
+  [6] "Th\xb9nh H\xe3a"          "\xa7\xf8c Hu\xd6"       "\xa7\xf8c H\xdfa"                     "Th\xf1 Th\xf5a"          
+ [11]          "T\xa9n Tr\xf4"                           "TP. Cao L\xb7nh"         
+ [16] "TP. Sa \xa7\xd0c"         "T\xa9n H\xe5ng"           "Tam N\xabng"              "Thanh B\xd7nh"            "L\xcap V\xdf"            
+ [21] "Lai Vung"                         "TP. Long Xuy\xaan"        "TP. Ch\xa9u \xa7\xe8c"                   
+ [26] "TX. T\xa9n Ch\xa9u"       "Ph\xf3 T\xa9n"                      "T\xdenh Bi\xaan"          "Tri T\xabn"              
+ [31]                     "Tho\xb9i S\xacn"          "TP. M\xfc Tho"            "TX. G\xdf C\xabng"       
+ [36] "T\xa9n Ph\xad\xedc"                                       "G\xdf C\xabng T\xa9y"    
+ [41] "G\xdf C\xabng \xa7\xabng" "TP. V\xdcnh Long"         "Long H\xe5"               "Mang Th\xddt"             "Tam B\xd7nh"             
+ [46] "Tr\xb5 \xa4n"             "V\xf2ng Li\xaam"          "TP. B\xd5n Tre"                    
+ [51] "Gi\xe5ng Tr\xabm"                                "Th\xb9nh Ph\xf3"          "TP.R\xb9ch Gi\xb8"       
+ [56] "TX. H\xb5 Ti\xaan"        "H\xdfn \xa7\xcat"         "T\xa9n Hi\xd6p"           "         "Gi\xe5ng Gi\xd2ng"       
+ [61] "G\xdf Quao"               "Ph\xf3 Qu\xe8c"           "Ki\xaan H\xb6i"           "Q.B\xd7nh Th\xf1y"        "Q.Ninh Ki\xd2u"          
+ [66] "Q.C\xb8i R\xa8ng"         "Phong \xa7i\xd2n"         "TP. Tr\xb5 Vinh"                 
+ [71]             "Ti\xd3u C\xc7n"           "C\xc7u Ngang"             "Tr\xb5 C\xf3"             "TX. Duy\xaan H\xb6i"     
+ [76] "TP. S\xe3c Tr\xa8ng"      "K\xd5 S\xb8ch"            "Th\xb9nh Tr\xde"          "TX. Ng\xb7 N\xa8m"        "TX. V\xdcnh Ch\xa9u"     
+ [81] "TP. B\xb9c Li\xaau"       "TX. Gi\xb8 Rai"           "\xa7\xabng H\xb6i"        "TP. C\xb5 Mau"            "Th\xedi B\xd7nh"         
+ [86] "U Minh"                   "Tr\xc7n V\xa8n Th\xeai"          "Ph\xf3 T\xa9n"            "\xa7\xc7m D\xaci"        
+ [91] "Ng\xe4c Hi\xd3n"          "N\xa8m C\xa8n"            "Ph\xad\xedc Long"         "H\xe5ng D\xa9n"           "H\xdfa B\xd7nh"          
+ [96] "V\xdcnh L\xeei"                     "M\xfc Xuy\xaan"             "Tr\xc7n \xa7\xd2"         "Long Ph\xf3"             
+[101] "M\xfc T\xf3"                              "Ph\xf4ng Hi\xd6p"        
+[106] "TX. Ng\xb7 B\xb6y"        "V\xde Th\xf1y"            "TP. V\xde Thanh"          "Long M\xfc"               "TX. Long M\xfc"          
+[111] "Th\xedi Lai"              "V\xdcnh Th\xb9nh"         "Q. \xa4 M\xabn"                     "Q. Th\xe8t N\xe8t"       
+[116]                               "V\xdcnh Thu\xcbn"         "U Minh Th\xad\xeeng"      "Ki\xaan L\xad\xacng"     
+[121] "Giang Th\xb5nh"                         "TX. Cai L\xcby"           "TX. B\xd7nh Minh"                 
+[126]              "Th\xb8p M\xad\xeai"       "H\xe5ng Ng\xf9"           "TX. H\xe5ng Ng\xf9"       "M\xe1 C\xb5y Nam"        
+[131] "M\xe1 C\xb5y"             "V\xdcnh H\xadng" 
+
