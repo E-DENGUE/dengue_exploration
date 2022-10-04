@@ -30,7 +30,7 @@ library(tsibble)
 ```{r}
 # import the data
 library(readxl)
-MDR_Dengue_Cases <- read_excel("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/OneDrive_1_9-16-2022/MDR Dengue Cases.xlsx")
+MDR_Dengue_Cases <- read_excel("./Data/CONFIDENTIAL/MDR Dengue Cases.xlsx")
 
 # change the variable structures
 MDR_Dengue_Cases <- MDR_Dengue_Cases %>%
