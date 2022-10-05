@@ -44,9 +44,6 @@ str(MDR_Dengue_Cases)
 MDR_Dengue_Cases %>% 
      sapply(levels)
 
-charToRaw(as.character(MDR_Dengue_Cases$district))
-
-rawToChar(MA$HUYEN)
 
 ```
 
@@ -333,12 +330,13 @@ ggplot(MDR_Dengue_Cases, aes(x = year, y = total_DHF_cases))+
 ```{r}
 
 #Reading in the Shapefile
-setwd("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/OneDrive_1_9-16-2022")
 
-MA<-readShapeSpatial('./MDR District Map/DBSCL_Ranh gioi_vung_region.shp')  
+MA<-readShapeSpatial('./Data/MDR Updated map/VMD_districts_2022.shp')  
 
 plot(MA)
 
+map.df <- MA@data
+View(map.df)
 #MA2 <- fortify(MA)
 
 #geom_polygon(data = MA, fill = NA, color = 'black', alpha = 0, na.rm = FALSE)
