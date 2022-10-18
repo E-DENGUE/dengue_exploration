@@ -22,35 +22,145 @@ library(tidyr)
 library(splines)
 library(tidyverse)
 library(tsibble)
+library(sf)
+library(scales)
+library(RColorBrewer)
+library(viridis)
 
 ```
 
 
-## Import the Data
+## Import the Data and Combine Incidence and Population Data
 ```{r}
 # import the data
 library(readxl)
-MDR_Dengue_Cases <- read_excel("./Data/CONFIDENTIAL/MDR Dengue Cases.xlsx")
+MDR_Dengue_Cases <- read_excel("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/CONFIDENTIAL/MDR Dengue Cases.xlsx")
+MDR_district_cases_pop <- read_excel("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/CONFIDENTIAL/updated - MDR district dengue cases & population.xlsx", 
+    sheet = "pop")
 
-# change the variable structures
+# rename columns and change variable structures
+MDR_district_cases_pop <- MDR_district_cases_pop %>%
+  rename('no_symbols_name' = 'District') %>%
+  rename('old_district_code' = 'District code - Old MDR map') %>%
+  rename('updated_district_code' = 'District code - Updated MDR map') %>%
+  mutate(Province = str_replace(Province, "Can Tho city", "Can Tho")) %>%
+  mutate(no_symbols_name = tolower(no_symbols_name),
+         symbols_name = tolower(symbols_name))
+
 MDR_Dengue_Cases <- MDR_Dengue_Cases %>%
-  mutate(district = as.factor(district)) %>%
-  mutate(district_code = as.factor(district_code)) %>%
-  mutate(province = as.factor(province)) %>%
-  mutate(total_DHF_cases = as.numeric(total_DHF_cases)) 
-  
-str(MDR_Dengue_Cases)
+  mutate(district = tolower(district)) %>%
+  mutate(district = str_replace(district, "h. vĩnh lợi", "vĩnh lợi")) %>%
+  mutate(district = str_replace(district, "mỏ cày/mỏ cày nam", "mỏ cày nam")) %>%
+  mutate(district = str_replace(district, "tx. cao lãnh", "tp. cao lãnh")) %>%
+  mutate(district = str_replace(district, "tiểu cần", "tiêu cần"))
+ 
 
-MDR_Dengue_Cases %>% 
-     sapply(levels)
+  
+
+updated_MDR_Dengue_Cases <- left_join(MDR_Dengue_Cases, MDR_district_cases_pop, by = c("district" = "symbols_name"), na.rm = na.rm)
+
+# fixed mo cay district --> combine populations of mo cay nam and mo cay bac based on updated district codes
+# fixed cần thơ not --> combine Binh Thuy, Co Do, Cai Rang, Ninh Kieu, Phong Dien, Thoi Lai based on updated district codes 
+
+str(updated_MDR_Dengue_Cases)
 
 
 ```
+
+## Changing the District Names
+Key for types of districts:
+Huyen = District
+
+Thanh pho = City
+Chau Doc, Long Xuyen, Bac Lieu, Ben Tre, Ca Mau, Thanh Pho Cao Lanh, Thi xa Hong Ngu, Sa Dec, Nga Bay, Vi Thanh, Ha Tien, Phu Quoc, Rach Gia, Tan An, Soc Trang, My Tho, Tra Vinh, Vinh Long
+
+Thi xa = Town
+Tan Chau, Gia Rai, Long My town, Kien Tuong, Nga Nam, Vinh Chau, Thi xa Cai Lay, Go Cong, Duyen Hai town, Binh Minh
+
+Quan = Urban District 
+Binh Thuy, Cai Rang, Ninh Kieu, O Mon, Thot Not
+
+```{r}
+# Create a column with district names matching VARNAME_2
+  
+updated_MDR_Dengue_Cases <- updated_MDR_Dengue_Cases %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "thanh pho cao lanh" , "cao lanh")) %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "thi xa hong ngu", "hong ngu")) %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "thi xa cai lay", "cai lay")) %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "huyen cao lanh", "cao lanh")) %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "huyen hong ngu", "hong ngu")) %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "huyen cai lay", "cai lay")) %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "duyen hai town", "duyen hai")) %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "long my town", "long my"))
+
+# Types of Districts
+City <- c("chau doc", "long xuyen", "bac lieu", "ben tre", "ca mau", "thanh pho cao lanh", "thi xa hong ngu", "sa dec", "nga bay", "vi thanh", "ha tien", "phu quoc", "rach gia", "tan an", "soc trang", "my tho", "tra vinh", "vinh long")
+Town <- c("tan chau", "gia rai", "long my town", "kien tuong", "nga nam", "vinh chau", "thi xa cai lay", "go cong", "duyen hai town", "binh minh")
+Urban_District <- c("binh thuy", "cai rang", "ninh kieu", "o mon", "thot not")
+District <- updated_MDR_Dengue_Cases$no_symbols_name 
+District <- District[!District %in% City]
+District <- District[!District %in% Town]
+District <- District[!District %in% Urban_District]
+
+
+# Create a column with district types matching ENGTYPE_2
+
+updated_MDR_Dengue_Cases <- updated_MDR_Dengue_Cases %>%
+  mutate(district_type = case_when(
+    no_symbols_name %in% City ~ "city", 
+    no_symbols_name %in% Town ~ "town", 
+    no_symbols_name %in% Urban_District ~ "urban district", 
+    no_symbols_name %in% District ~ "district"
+  )) 
+
+
+  
+
+
+```
+
+## Continue Cleaning
+```{r}
+
+# fix the NA for Tan An, for some reason was given the name Ben Luc when coded without symbols, also fix Cai Lay and An Phu
+updated_MDR_Dengue_Cases$no_symbols_name[updated_MDR_Dengue_Cases$district == "tân an" & updated_MDR_Dengue_Cases$no_symbols_name ==  "ben luc"] <- "tan an"
+updated_MDR_Dengue_Cases$no_symbols_name[updated_MDR_Dengue_Cases$district == "tân an" & updated_MDR_Dengue_Cases$no_symbols_name ==  "ben luc"] <- "tan an"
+# need to run again to fix Tan An
+updated_MDR_Dengue_Cases <- updated_MDR_Dengue_Cases %>%
+  mutate(district_type = case_when(
+    no_symbols_name %in% City ~ "city", 
+    no_symbols_name %in% Town ~ "town", 
+    no_symbols_name %in% Urban_District ~ "urban district", 
+    no_symbols_name %in% District ~ "district"
+  )) 
+
+# create incidence per 100,000 people column
+updated_MDR_Dengue_Cases <- updated_MDR_Dengue_Cases %>%
+  mutate(DHF_incidence = 100000*(total_DHF_cases/pop)) %>%
+  mutate(log_DHF_incidence = log(DHF_incidence)) %>%
+  mutate(m1 = as.numeric(m1), 
+         m2 = as.numeric(m2),
+         m3 = as.numeric(m3), 
+         m4 = as.numeric(m4), 
+         m5 = as.numeric(m5), 
+         m6 = as.numeric(m6))
+
+# create a monthly incidence df
+updated_monthly_DHF_incidence <- updated_MDR_Dengue_Cases %>%
+  dplyr::select(c(district, district_code, province, total_DHF_cases, year, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, no_symbols_name, district_type, updated_district_code.y, pop)) %>%
+    pivot_longer(cols = starts_with("m"), 
+               values_to = "m_DHF_cases", 
+               names_to = "monthvar") %>%
+  mutate(m_DHF_incidence = 100000*(m_DHF_cases/pop), 
+         log_m_DHF_incidence = log(m_DHF_incidence))
+
+```
+
 
 ## An Giang Province
 ```{r}
 
-an_giang_cases_by_year <- MDR_Dengue_Cases %>%
+an_giang_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "An Giang") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -62,13 +172,19 @@ an_giang_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "An Giang Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+an_giang_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "An Giang")
 
+ggplot(an_giang_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
 ```
 
 ## Bac Lieu Province
 ```{r}
 
-bac_lieu_cases_by_year <- MDR_Dengue_Cases %>%
+bac_lieu_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Bac Lieu") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -80,13 +196,19 @@ bac_lieu_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Bac Lieu Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
   
+# look at time series
+bac_lieu_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Bac Lieu")
 
+ggplot(bac_lieu_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
 
 ```
 ## Ben Tre Province
 ```{r}
 
-ben_tre_cases_by_year <- MDR_Dengue_Cases %>%
+ben_tre_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Ben Tre") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -98,12 +220,19 @@ ben_tre_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Ben Tre Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+ben_tre_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Ben Tre")
+
+ggplot(ben_tre_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
 
 ```
 ## Ca Mau Province
 ```{r}
 
-ca_mau_cases_by_year <- MDR_Dengue_Cases %>%
+ca_mau_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Ca Mau") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -115,13 +244,19 @@ ca_mau_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Ca Mau Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+ca_mau_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Ca Mau")
 
+ggplot(ca_mau_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
 ```
 
 ## Can Tho Province
 ```{r}
 
-can_tho_cases_by_year <- MDR_Dengue_Cases %>%
+can_tho_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Can Tho") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -133,13 +268,21 @@ can_tho_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Can Tho Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+can_tho_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Can Tho")
 
+ggplot(can_tho_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
+
+#### weird jump just before 2005
 ```
 
 ## Dong Thap Province
 ```{r}
 
-dong_thap_cases_by_year <- MDR_Dengue_Cases %>%
+dong_thap_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Dong Thap") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -151,12 +294,20 @@ dong_thap_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Dong Thap Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+dong_thap_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Dong Thap")
+
+ggplot(dong_thap_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
+
 ```
 
 ## Hau Giang Province
 ```{r}
 
-hau_giang_cases_by_year <- MDR_Dengue_Cases %>%
+hau_giang_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Hau Giang") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -168,13 +319,19 @@ hau_giang_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Hau Giang Province DHF Cases 2004 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+hau_giang_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Hau Giang")
 
+ggplot(hau_giang_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
 ```
 
 ## Kien Giang Province
 ```{r}
 
-kien_giang_cases_by_year <- MDR_Dengue_Cases %>%
+kien_giang_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Kien Giang") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -186,13 +343,20 @@ kien_giang_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Kien Giang Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+kien_giang_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Kien Giang")
+
+ggplot(kien_giang_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
 
 ```
 
 ## Long An Province
 ```{r}
 
-long_an_cases_by_year <- MDR_Dengue_Cases %>%
+long_an_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Long An") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -204,13 +368,20 @@ long_an_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Long An Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+long_an_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Long An")
+
+ggplot(long_an_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
 
 ```
 
 ## Soc Trang Province
 ```{r}
 
-soc_trang_cases_by_year <- MDR_Dengue_Cases %>%
+soc_trang_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Soc Trang") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -222,13 +393,20 @@ soc_trang_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Soc Trang Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+soc_trang_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Soc Trang")
+
+ggplot(soc_trang_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
 
 ```
 
 ## Tien Giang Province
 ```{r}
 
-tien_giang_cases_by_year <- MDR_Dengue_Cases %>%
+tien_giang_cases_by_year <- updated_MDR_Dengue_Cases%>%
   filter(province == "Tien Giang") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -240,13 +418,20 @@ tien_giang_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Tien Giang Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+tien_giang_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Tien Giang")
+
+ggplot(tien_giang_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
 
 ```
 
 ## Tra Vinh Province
 ```{r}
 
-tra_vinh_cases_by_year <- MDR_Dengue_Cases %>%
+tra_vinh_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Tra Vinh") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -258,13 +443,21 @@ tra_vinh_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Tra Vinh Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
+# look at time series
+tra_vinh_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Tra Vinh")
+
+ggplot(tra_vinh_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
+
 
 ```
 
 ## Vinh Long Province
 ```{r}
 
-vinh_long_cases_by_year <- MDR_Dengue_Cases %>%
+vinh_long_cases_by_year <- updated_MDR_Dengue_Cases %>%
   filter(province == "Vinh Long") %>%
   group_by(year) %>%
   summarize(year_total = sum(total_DHF_cases))
@@ -276,50 +469,97 @@ vinh_long_cases_by_year %>%
   theme(axis.text.x = element_text(angle = 90))+
   labs(title = "Vinh Long Province DHF Cases 2001 - 2018", x = "Year", y = "Total DHF Cases")
 
-#without splines
-x_vl <- vinh_long_cases_by_year$year
-y_vl <- vinh_long_cases_by_year$year_total
-y.lab_vl <- 'Total Annual DHF Cases'
-x.lab_vl <- 'Year'
-plot(x_vl, y_vl, cex.lab = 1.1, col="darkgrey", xlab = x.lab_vl, ylab = y.lab_vl,
-     main = "", bty = 'l', type = "l")
+# look at time series
+vinh_long_cases <- updated_MDR_Dengue_Cases %>%
+  filter(province == "Vinh Long")
 
-#with splines
-library(stats); library(splines); library(gam); library(dlnm)
-
-fit_vl <- gam::gam(year_total ~ year + s(year, 7*18), family = quasipoisson, data = vinh_long_cases_by_year)
-pr_vl <- predict(fit_vl, type = "terms")
-plot(x, pr_vl[, 2], type = "l", lty =2, ylim = range(pr, na.rm = TRUE), ylab = "", xlab = "")
-
-
-ggplot(vinh_long_cases_by_year, aes(x = year, y = year_total))+
-  geom_line()
+ggplot(vinh_long_cases, aes(x = year, y = total_DHF_cases, group=district, col = district))+
+  geom_line()+
+  theme_classic()
 
 ```
 
 ## Time Series 
 ```{r}
 #without splines
-x <- MDR_Dengue_Cases$year
-y <- MDR_Dengue_Cases$total_DHF_cases
-y.lab <- 'Total Annual DHF Cases'
-x.lab <- 'Year'
-plot(x, y, cex.lab = 1.1, col="darkgrey", xlab = x.lab, ylab = y.lab,
-     main = "", bty = 'l')
+#x <- MDR_Dengue_Cases$year
+#y <- MDR_Dengue_Cases$total_DHF_cases
+#y.lab <- 'Total Annual DHF Cases'
+#x.lab <- 'Year'
+#plot(x, y, cex.lab = 1.1, col="darkgrey", xlab = x.lab, ylab = y.lab,
+#     main = "", bty = 'l')
 
 #with splines
-library(stats); library(splines); library(gam); library(dlnm)
+#library(stats); library(splines); library(gam); library(dlnm)
 
-fit <- gam::gam(total_DHF_cases ~ year + s(year, 7*18), family = quasipoisson, data = MDR_Dengue_Cases)
-pr <- predict(fit, type = "terms")
-x1 <- seq(as.Date("2001-01-01"), as.Date("2018-12-12"), "year")
-plot(x, pr[, 2], type = "l", lty =2, ylim = range(pr, na.rm = TRUE), ylab = "", xlab = "")
+#fit <- gam::gam(total_DHF_cases ~ year + s(year, 7*18), family = quasipoisson, data = MDR_Dengue_Cases)
+#pr <- predict(fit, type = "terms")
+#x1 <- seq(as.Date("2001-01-01"), as.Date("2018-12-12"), "year")
+#plot(x, pr[, 2], type = "l", lty =2, ylim = range(pr, na.rm = TRUE), ylab = "", xlab = "")
 
+# total DHF cases
+ggplot(updated_MDR_Dengue_Cases, aes(x = year, y = total_DHF_cases, group=district, col = province))+
+  geom_line()+
+  theme_classic()+
+  labs(title = "MDR Province Total DHF Cases 2001-2018", x = "Year", y = "Total DHF Cases")
 
-ggplot(MDR_Dengue_Cases, aes(x = year, y = total_DHF_cases))+
-  geom_line()
+ggplot(updated_MDR_Dengue_Cases, aes(x = year, y = total_DHF_cases, group=district))+
+  geom_line()+
+  facet_wrap(~province, scales = 'free_y')+
+  theme_classic() +
+  labs(title = "MDR Province Total DHF Cases 2001-2018", subtitle = "Grouped by Province", x = "Year", y = "Total DHF Cases")
 
+ggplot(updated_MDR_Dengue_Cases, aes(x = year, y = total_DHF_cases, group=district, col = province))+
+  geom_line()+
+  facet_wrap(~factor(district_type), scales = 'free_y')+
+  theme_classic()+
+  labs(title = "MDR Province Total DHF Cases 2001-2018", subtitle = "Grouped by District Type", x = "Year", y = "Total DHF Cases")
 
+ggplot(updated_monthly_DHF_incidence, aes(x = monthvar, y = m_DHF_cases, group=district, col = province))+
+  geom_line()+
+  facet_wrap(~factor(year), scales = 'free_y')+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 90, size = 5))+ 
+  labs(title = "MDR Province Total DHF Cases", subtitle = "Grouped by Year", x = "Month", y = "Total DHF Cases")
+
+ggplot(updated_monthly_DHF_incidence, aes(x = year, y = m_DHF_cases, group=district, col = province))+
+  geom_line()+
+  facet_wrap(~factor(monthvar), scales = 'free_y')+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 90, size = 5))+ 
+  labs(title = "MDR Province Total DHF Cases", subtitle = "Grouped by Month", x = "Year", y = "Total DHF Cases")
+
+# DHF incidence 
+ggplot(updated_MDR_Dengue_Cases, aes(x = year, y = DHF_incidence, group=district, col = province))+
+  geom_line()+
+  theme_classic()+
+  labs(title = "MDR Province DHF Incidence 2001-2018", subtitle = "Using current population estimates", x = "Year", y = "DHF Incidence per 100,000 People")
+
+ggplot(updated_MDR_Dengue_Cases, aes(x = year, y = DHF_incidence, group=district))+
+  geom_line()+
+  facet_wrap(~province, scales = 'free_y')+
+  theme_classic() +
+  labs(title = "MDR Province DHF Incidence 2001-2018", subtitle = "Grouped by province, using current population estimates", x = "Year", y = "DHF Incidence per 100,000 People")
+
+ggplot(updated_MDR_Dengue_Cases, aes(x = year, y = DHF_incidence, group=district, col = province))+
+  geom_line()+
+  facet_wrap(~factor(district_type), scales = 'free_y')+
+  theme_classic()+
+  labs(title = "MDR Province DHF Incidence 2001-2018", subtitle = "Grouped by district type, using current population estimates", x = "Year", y = "DHF Incidence per 100,000 People")
+
+ggplot(updated_monthly_DHF_incidence, aes(x = monthvar, y = m_DHF_incidence, group=district, col = province))+
+  geom_line()+
+  facet_wrap(~factor(year), scales = 'free_y')+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 90, size = 5))+ 
+  labs(title = "MDR Province DHF Incidence", subtitle = "Grouped by Year", x = "Month", y = "DHF Incidence per 100,000 People")
+
+ggplot(updated_monthly_DHF_incidence, aes(x = year, y = m_DHF_incidence, group=district, col = province))+
+  geom_line()+
+  facet_wrap(~factor(monthvar), scales = 'free_y')+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 90, size = 5))+ 
+  labs(title = "MDR Province DHF Incidence", subtitle = "Grouped by Month", x = "Year", y = "DHF Incidence per 100,000 People")
 
 ```
 
@@ -330,138 +570,303 @@ ggplot(MDR_Dengue_Cases, aes(x = year, y = total_DHF_cases))+
 ```{r}
 
 #Reading in the Shapefile
+#setwd("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/OneDrive_1_9-16-2022")
 
-MA<-readShapeSpatial('./Data/MDR Updated map/VMD_districts_2022.shp')  
+#MA<-readShapeSpatial('./MDR District Map/DBSCL_Ranh gioi_vung_region.shp')  
+#plot(MA)
 
-plot(MA)
 
-map.df <- MA@data
-View(map.df)
-#MA2 <- fortify(MA)
+MDR <- readShapeSpatial('/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/MDR Updated map/VMD_districts_2022.shp')
+plot(MDR)
 
-#geom_polygon(data = MA, fill = NA, color = 'black', alpha = 0, na.rm = FALSE)
 
+MDR@data
+
+```
+
+## Combine Map and Incidence Data
+```{r}
+
+MDR_2 <- st_read(dsn = '/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/MDR Updated map/VMD_districts_2022.shp')
+
+MDR@data
+
+MDR_2 %>%
+  mutate(MDR_2, VARNAME_2 = as.character(VARNAME_2)) %>%
+  mutate(MDR_2, ENGTYPE_2 = as.character(ENGTYPE_2)) 
+
+# re-capitalize district names and types to match with the shapefile
+updated_MDR_Dengue_Cases <- updated_MDR_Dengue_Cases %>%
+  mutate(no_symbols_name = str_to_title(no_symbols_name), 
+         district_type = str_to_title(district_type))
+updated_monthly_DHF_incidence <- updated_monthly_DHF_incidence %>%
+  mutate(no_symbols_name = str_to_title(no_symbols_name), 
+         district_type = str_to_title(district_type))
+  
+MDR_Dengue_map <- left_join(MDR_2, updated_MDR_Dengue_Cases, by = c("VARNAME_2" = "no_symbols_name", "ENGTYPE_2" = "district_type"))
+
+MDR_monthly_dengue_map <- left_join(MDR_2, updated_monthly_DHF_incidence, by = c("VARNAME_2" = "no_symbols_name", "ENGTYPE_2" = "district_type"))
 ```
 
 ## Map DHF Incidence Data 
 ```{r}
+# total case map
+ggplot(data = MDR_Dengue_map)+
+  geom_sf(aes(fill = total_DHF_cases), color = "black", size = 0.25)+
+  scale_fill_distiller(name = "DHF Cases", 
+                       palette = "Blues", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "Total DHF Cases in MDR 2001-2018")
+
+# case map with district population included 
+st_geometry_type(MDR_Dengue_map, by_geometry=FALSE)
+sdcntrd <- st_centroid(MDR_Dengue_map)
+st_geometry_type(MDR_Dengue_map, by_geometry = FALSE)
+
+ggplot()+
+  geom_sf(data = MDR_Dengue_map, aes(fill = total_DHF_cases), color = "black", size = 0.25)+
+  scale_fill_distiller(name = "DHF Cases", 
+                       palette = "Blues", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+  geom_sf(data = sdcntrd, aes(size = pop), color = "black", show.legend = "point")+
+  scale_size(name = "Population")+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "Total DHF Cases in MDR 2001-2018")
+
+# incidence map
+ggplot(data = MDR_Dengue_map)+
+  geom_sf(aes(fill = DHF_incidence), color = "black", size = 0.25)+
+  scale_fill_distiller(name = "DHF Incidence per 100,000 people", 
+                       palette = "Reds", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "DHF Incidence in MDR 2001-2018")
+
+ggplot(data = MDR_Dengue_map)+
+  geom_sf(aes(fill = log(DHF_incidence)), color = "black", size = 0.25)+
+  scale_fill_distiller(name = "Log DHF Incidence per 100,000 people", 
+                       palette = "Reds", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "DHF Incidence in MDR 2001-2018")
+
+#incidence maps by year
+ggplot(data = MDR_Dengue_map)+
+  geom_sf(aes(fill = log(DHF_incidence)), color = "black", size = 0.25)+
+  facet_wrap(~factor(year))+
+  scale_fill_distiller(name = "Log DHF Incidence per 100,000 people", 
+                       palette = "Reds", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "DHF Incidence in MDR 2001-2018", subtitle = "Grouped by year")
+
+#incidence maps by month
+ggplot(data = MDR_monthly_dengue_map)+
+  geom_sf(aes(fill = log(m_DHF_incidence)), color = "black", size = 0.25)+
+  facet_wrap(~factor(monthvar))+
+  scale_fill_distiller(name = "Log DHF Incidence per 100,000 people", 
+                       palette = "Reds", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "DHF Incidence in MDR 2001-2018", subtitle = "Grouped by month")
 
 
-#library(haven)
-#MKhuyencoord <- read_dta("MDR District Map/MKhuyencoord.dta")
-#library(haven)
-#MKhuyendb <- read_dta("MDR District Map/MKhuyendb.dta", fileEncoding = "UTF-8")
+# average of each month by district 
+MDR_monthly_average_map <- MDR_Dengue_map %>%
+  group_by(factor(VARNAME_2)) %>%
+  summarize(m1_avg = mean(m1),
+            m2_avg = mean(m2),
+            m3_avg = mean(m3),
+            m4_avg = mean(m4),
+            m5_avg = mean(m5),
+            m6_avg = mean(m6),
+            m7_avg = mean(m7),
+            m8_avg = mean(m8),
+            m9_avg = mean(m9),
+            m10_avg = mean(m10),
+            m11_avg = mean(m11),
+            m12_avg = mean(m12))
+  
+MDR_monthly_average_map <- MDR_monthly_average_map %>%
+  pivot_longer(cols = starts_with("m"), 
+               values_to = "m_avg_DHF_cases", 
+               names_to = "month")
 
-#district_map <- iconv(district_map, "Unkown", "UTF-8")
+  ggplot(data = MDR_monthly_average_map)+
+  geom_sf(aes(fill = m_avg_DHF_cases, na.rm = T), color = "black", size = 0.25)+
+  facet_wrap(~factor(month))+
+  scale_fill_distiller(name = "DHF Cases", 
+                       palette = "Reds", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "Average Monthly DHF Cases 2001 - 2018", subtitle = "Grouped by month")
+  
+  
+  # try to turn off borders
+  # make sure month 7 has 134 rows
+  # and check the number of districts in the map file and the incidence data
 
-#district_map <- st_read(dsn = './MDR District Map/DBSCL_Ranh gioi_vung_region.shp', encoding = "UTF-8") 
-
-#district_map_HUYEN <- c(district_map$HUYEN)
-#district_map_HUYEN
-#district_map_HUYEN <- decodeVN(district_map_HUYEN, diacritics = FALSE)
-#district_map <- decodeVN(district_map$HUYEN, diacritics = FALSE)
+  #test
+```
 
 
+## Heat Map
+```{r}
 
-#district_map <- mutate(district_map, district = as.character(HUYEN))
-#MDR_Dengue_Cases_for_map <- left_join(district_map, MDR_Dengue_Cases, by = c("district" = "district"))
 
+MDR_dengue_heatmap <- MDR_Dengue_map %>%
+  group_by(VARNAME_2) %>%
+  mutate(scaled_cases = total_DHF_cases/max(total_DHF_cases))
+
+MDR_monthly_dengue_heatmap <- MDR_monthly_dengue_map %>%
+ group_by(VARNAME_2) %>%
+  group_by(monthvar) %>%
+  mutate(scaled_cases = m_DHF_cases/max(m_DHF_cases))
+
+# by each district
+ggplot(MDR_dengue_heatmap, aes(year, VARNAME_2, fill = scaled_cases))+
+  geom_tile()+ 
+  scale_fill_distiller(name = "Scaled DHF Cases", 
+                       palette = "Blues", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+  theme(axis.text.y = element_text(size = 3))+
+  labs(x = "Year", y = "District", title ="Heatmap of DHF Cases in MDR 2001 - 2018")
+
+
+# by each province
+ggplot(MDR_dengue_heatmap, aes(year, province, fill = scaled_cases))+
+  geom_tile() +
+  scale_fill_distiller(name = "Scaled DHF Cases", 
+                       palette = "Blues", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+  labs(x = "Year", y = "Province", title = "Heatmap of MDR DHF Cases in MDR 2001 - 2018")
+
+#by each month
+ggplot(MDR_monthly_dengue_heatmap, aes(year, monthvar, fill = scaled_cases))+
+  geom_tile() +
+  labs(x = "Year", y = "Month", title = "Heatmap of MDR DHF Cases")
+
+
+
+
+#MDR_dengue_heatmap_2 <- MDR_dengue_heatmap_2 %>%
+#  group_by(VARNAME_2, monthvar) %>%
+#  mutate(m_scaled_cases = m_DHF_cases/max(m_DHF_cases))
+#p <- ggplot(MDR_dengue_heatmap_2, aes(monthvar, province, fill = m_scaled_cases))+
+#      geom_tile(color = "white", size = 0.1)+
+#      scale_fill_viridis(name = "Monthly DHF Cases", option = "C")
+#p <- p + facet_grid(year)
+#p <- p + scale_y_continuous(trans = "reverse", breaks = unique(MDR_dengue_heatmap_2$province))
+#p <- p + scale_x_continuous(breaks = c(1:12))
+#p <-p + theme_minimal(base_size = 8)
+#p <-p + labs(title= paste("Monthly DHF Cases"), x="Month", y="Province")
+#p <-p + theme(legend.position = "bottom")+
+#  theme(plot.title=element_text(size = 14))+
+#  theme(axis.text.y=element_text(size=6)) +
+#  theme(strip.background = element_rect(colour="white"))+
+#  theme(plot.title=element_text(hjust=0))+
+#  theme(axis.ticks=element_blank())+
+#  theme(axis.text=element_text(size=7))+
+#  theme(legend.title=element_text(size=8))+
+#  theme(legend.text=element_text(size=6))
+  #removeGrid()
+#p
+
+
+
+color <- rev(viridis(10))
+```
+
+
+## Incidence maps by year 
+```{r}
+MDR_dengue_heatmap %>%
+  ggplot()+
+  geom_sf(aes(fill = scaled_cases), color = "black", size = 0.25)+
+  scale_fill_distiller(name = "DHF Cases", 
+                       palette = "Reds", 
+                       breaks = pretty_breaks())+
+  facet_wrap(~year, ncol = 6) +
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "Scaled DHF Cases in MDR 2001-2018") 
+
+# 2001
+MDR_dengue_heatmap_2001 <- MDR_dengue_heatmap %>%
+  filter(year == 2001) 
+
+ ggplot()+
+     geom_sf(aes(fill = scaled_cases), color = "black", size = 0.25)+
+  scale_fill_distiller(name = "DHF Cases", 
+                       palette = "Reds", 
+                       breaks = pretty_breaks())+
+  facet_wrap(~, ncol = 6) +
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "Scaled DHF Cases in MDR 2001")
+
+MDR_dengue_map_2001 %>%
+  ggplot()+
+  geom_sf(aes(fill = scaled_cases), color = "black", size = 0.25)+
+  scale_fill_distiller(name = "DHF Cases", 
+                       palette = "Reds", 
+                       breaks = pretty_breaks())+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "DHF Cases per 100,000 People in MDR 2001")
+
+#2002
+MDR_dengue_map_2002 <- MDR_dengue_heatmap %>%
+  filter(year == 2002)
+
+MDR_dengue_map_2002 %>%
+  ggplot()+
+  geom_sf(aes(fill = scaled_cases), color = "black", size = 0.25)+
+  scale_fill_distiller(name = "DHF Cases", 
+                       palette = "RdBu", 
+                       breaks = pretty_breaks())+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "Scaled DHF Cases in MDR 2002")
 
 
 ```
-
-$district
-  [1] "An Biên"           "An Minh"           "An Phú"            
-  "Ba Tri"            "Bạc Liêu"          "Bến Lức"           "Bến Tre"          
-  [8] "Bình Đại"          "Bình Minh"         "Bình Tân"          "Bình Thủy"         
-  
-  "Cà Mau"                   
- [15]           "Cái Răng"          "Cần Đước"        "Cần Thơ"                          
- [22]                     "Châu Đốc"                             
- [29]=                    "Cờ Đỏ"                   
- 
- "Đầm Dơi"           "Đông Hải"          "Đức Hòa"          
- [36] "Đức Huệ"           "Duyên Hải"         
- 
- "Giá Rai"           "Giang Thành"       "Giồng Riềng"       "Giồng Trôm"        "Gò Công"          
- [43] "Gò Công Đông"      "Gò Công Tây"       "Gò Quao"           
- 
- "H. Vĩnh Lợi"       "Hà Tiên"           "Hoà Bình"          "Hòn Đất"          
- [50] "Hồng Dân"          "Hồng Ngự"          
- 
- "Kế Sách"           "Kiên Hải"          "Kiên Lương"        "Kiến Tường"        
- 
- "Lai Vung"         
- [57] "Lấp Vò"            "Long Hồ"           "Long Mỹ"           "Long Phú"          "Long Xuyên"        
- 
- "Mang Thít"         "Mỏ Cày"           
- [64] "Mỏ Cày Bắc"        "Mỏ Cày Nam"        "Mỏ Cày/Mỏ Cày Nam" "Mộc Hóa"           "Mỹ Tho"            "Mỹ Tú"             "Mỹ Xuyên"         
- [71] 
- 
- "Năm Căn"           "Ngã Bảy"           "Ngã Năm"           "Ngọc Hiển"         "Ninh Kiều"         
-
- "Ô Môn"            
- 
- "Phong Điền"       
- [78] "Phú Quốc"          "Phú Tân"           "Phụng Hiệp"        "Phước Long"        "Rạch Giá"          "Sa Đéc"            "Sóc Trăng"        
- [85] "Tam Bình"          "Tam Nông"          "Tân An"            "Tân Châu"          "Tân Hiệp"          "Tân Hồng"          "Tân Hưng"         
- [92] "Tân Phú Đông"      "Tân Phước"         "Tân Thạnh"         "Tân Trụ"           "Thanh Bình"        "Thạnh Hóa"         "Thạnh Phú"        
- [99] "Thạnh Trị"         "Tháp Mười"         "Thoại Sơn"         "Thới Bình"         "Thới Lai"          "Thốt Nốt"          "Thủ Thừa"         
-[106] "Tiêu Cần"          "Tiểu Cần"          "Tịnh Biên"         "TP. Cao Lãnh"      "Trà Cú"            "Trà Ôn"            "Trà Vinh"         
-[113] "Trần Đề"           "Trần Văn Thời"     "Tri Tôn"           "TX. Cai Lậy"       "TX. Cao Lãnh"      "TX. Duyên Hải"     "TX. Hồng Ngự"     
-[120] "TX. Long Mỹ"       "U Minh"            "U Minh Thượng"     "Vị Thanh"          "Vị Thủy"           "Vĩnh Châu"         "Vĩnh Hưng"        
-[127] "Vĩnh Lợi"          "Vĩnh Long"         "Vĩnh Thạnh"        "Vĩnh Thuận"        "Vũng Liêm" 
-
-"An Bi\xaan" = "An Biên" 
-"An Minh" = "An Minh" 
-"An Ph\xf3"= "An Phú"
-"B\xd7nh \xa7\xb9i" = "Bình Đại"
-"Ba Tri" = "Ba Tri"
-"B\xd5n L\xf8c" = "Bạc Liêu" or "Bến Lức"
-"B\xd7nh T\xa9n" = "Bến Tre"
-"C\xabn \xa7\xb6o" 
-"Ch\xa9u Th\xb5nh" = "Châu Thành"
-"Ch\xee M\xedi" = "Chợ Mới" 
-"C\xc7u K\xcc" = "Cầu Kè"
-"Cao L\xb7nh" = "Cao Lãnh"
-"C\xc7n \xa7\xad\xedc"
-"C\xef Lao Dung" = "Cù Lao Dung"
- "Cai L\xcby" = "Cai Lậy" 
- "C\xc7n Giu\xe9c" = "Cần Giuộc"
- "Ch\xa9u Ph\xf3" = "Châu Phú"
- "Ch\xee g\xb9o" = "Chợ Gạo"
- "C\xb8i B\xcc" = "Cái Bè"
- "Ch\xee L\xb8ch" = "Chợ Lách"
- "C\xb5ng Long" = "Càng Long"             
-  "C\xb8i N\xad\xedc" = "Cầu Ngang" or "Cái Nước"
-  "Ch\xa9u Th\xb5nh A" = "Châu Thành A" 
-  "C\xea \xa7\xe1" 
-
-  [1]         "TP. T\xa9n An"            "T\xa9n H\xadng"           "M\xe9c Ho\xb8"            "T\xa9n Th\xb9nh"         
-  [6] "Th\xb9nh H\xe3a"          "\xa7\xf8c Hu\xd6"       "\xa7\xf8c H\xdfa"                     "Th\xf1 Th\xf5a"          
- [11]          "T\xa9n Tr\xf4"                           "TP. Cao L\xb7nh"         
- [16] "TP. Sa \xa7\xd0c"         "T\xa9n H\xe5ng"           "Tam N\xabng"              "Thanh B\xd7nh"            "L\xcap V\xdf"            
- [21] "Lai Vung"                         "TP. Long Xuy\xaan"        "TP. Ch\xa9u \xa7\xe8c"                   
- [26] "TX. T\xa9n Ch\xa9u"       "Ph\xf3 T\xa9n"                      "T\xdenh Bi\xaan"          "Tri T\xabn"              
- [31]                     "Tho\xb9i S\xacn"          "TP. M\xfc Tho"            "TX. G\xdf C\xabng"       
- [36] "T\xa9n Ph\xad\xedc"                                       "G\xdf C\xabng T\xa9y"    
- [41] "G\xdf C\xabng \xa7\xabng" "TP. V\xdcnh Long"         "Long H\xe5"               "Mang Th\xddt"             "Tam B\xd7nh"             
- [46] "Tr\xb5 \xa4n"             "V\xf2ng Li\xaam"          "TP. B\xd5n Tre"                    
- [51] "Gi\xe5ng Tr\xabm"                                "Th\xb9nh Ph\xf3"          "TP.R\xb9ch Gi\xb8"       
- [56] "TX. H\xb5 Ti\xaan"        "H\xdfn \xa7\xcat"         "T\xa9n Hi\xd6p"           "         "Gi\xe5ng Gi\xd2ng"       
- [61] "G\xdf Quao"               "Ph\xf3 Qu\xe8c"           "Ki\xaan H\xb6i"           "Q.B\xd7nh Th\xf1y"        "Q.Ninh Ki\xd2u"          
- [66] "Q.C\xb8i R\xa8ng"         "Phong \xa7i\xd2n"         "TP. Tr\xb5 Vinh"                 
- [71]             "Ti\xd3u C\xc7n"           "C\xc7u Ngang"             "Tr\xb5 C\xf3"             "TX. Duy\xaan H\xb6i"     
- [76] "TP. S\xe3c Tr\xa8ng"      "K\xd5 S\xb8ch"            "Th\xb9nh Tr\xde"          "TX. Ng\xb7 N\xa8m"        "TX. V\xdcnh Ch\xa9u"     
- [81] "TP. B\xb9c Li\xaau"       "TX. Gi\xb8 Rai"           "\xa7\xabng H\xb6i"        "TP. C\xb5 Mau"            "Th\xedi B\xd7nh"         
- [86] "U Minh"                   "Tr\xc7n V\xa8n Th\xeai"          "Ph\xf3 T\xa9n"            "\xa7\xc7m D\xaci"        
- [91] "Ng\xe4c Hi\xd3n"          "N\xa8m C\xa8n"            "Ph\xad\xedc Long"         "H\xe5ng D\xa9n"           "H\xdfa B\xd7nh"          
- [96] "V\xdcnh L\xeei"                     "M\xfc Xuy\xaan"             "Tr\xc7n \xa7\xd2"         "Long Ph\xf3"             
-[101] "M\xfc T\xf3"                              "Ph\xf4ng Hi\xd6p"        
-[106] "TX. Ng\xb7 B\xb6y"        "V\xde Th\xf1y"            "TP. V\xde Thanh"          "Long M\xfc"               "TX. Long M\xfc"          
-[111] "Th\xedi Lai"              "V\xdcnh Th\xb9nh"         "Q. \xa4 M\xabn"                     "Q. Th\xe8t N\xe8t"       
-[116]                               "V\xdcnh Thu\xcbn"         "U Minh Th\xad\xeeng"      "Ki\xaan L\xad\xacng"     
-[121] "Giang Th\xb5nh"                         "TX. Cai L\xcby"           "TX. B\xd7nh Minh"                 
-[126]              "Th\xb8p M\xad\xeai"       "H\xe5ng Ng\xf9"           "TX. H\xe5ng Ng\xf9"       "M\xe1 C\xb5y Nam"        
-[131] "M\xe1 C\xb5y"             "V\xdcnh H\xadng" 
-
