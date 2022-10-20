@@ -1,0 +1,85 @@
+---
+title: "Model Building"
+author: "Elisabeth Nelson"
+date: "2022-10-20"
+output: pdf_document
+---
+## Load Packages
+```{r}
+#library(rjags)
+library(MCMCpack)
+library(stats)
+library(CARBayes) # <- this is the package for the model
+library(rgdal) # <- for working with shapefiles
+library(RColorBrewer) 
+library(ggplot2)
+library(rgeos) # <- also for working with shapefiles
+library(maptools) # shapefiles again
+library(spdep) # still shapefiles 
+library(ggmap) # plotting shapefiles 
+library(sf)
+
+```
+
+
+## Set-up for Carbays
+```{r}
+# Number of spatial units (e.g., districts in MDR)
+n.district <- 134
+
+# Create an n x􏰀 n identity matrix
+Id.mat <- diag(n.district)
+
+MDR_2 <- st_read(dsn = '/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/MDR Updated map/VMD_districts_2022.shp')
+
+```
+
+## Neighbor Matrix
+```{r}
+# Neighbors can either be Queen (any zip that touches another zip - even at 
+# corners) or Rook neighbors (share full sides -- not corners)
+
+# The snap dist is governing the NA in neighbor matrix
+# Can remove SNAP statement; if Queen = F then single point touch not allowed 
+# and Rook distance used.
+
+# When data is missing -- there's more non-zero links involved 
+# Try to make snap distance as small as possible while making sure all states 
+# have at least one neighbor
+neighb <- poly2nb(MDR_2, queen = T, snap = sqrt(0.001))
+
+# Check average number of links -- increase snap distance if it says there is 
+# a zip with zero neighbors
+neighb # Avg Number of links = 5.19403 
+  # regions 74 nand 76 have no links, regardless of the snap size??
+
+# Make neighbor matrix 
+# if zero.policy FALSE stop with error for any empty neighbour sets, 
+# if TRUE permit the weights list to be formed with zero-length weights vectors
+# B is the basic binary coding, W is row standardised (both are commonly used)
+neighb.mat <- nb2mat(neighb, zero.policy = T, style = 'B')
+
+# For Leroux model, neighbor matrix needs to have 0 if not neighboring, -1 if 
+# neighbor, and # of neighbors for each state on diagonal), so...
+w.mat <- ifelse(neighb.mat==1,-1,neighb.mat)
+num.neigh <- colSums(neighb.mat) # Count the number of neighbors for each state
+for (i in 1:nrow(w.mat)) { # Put the number of neighbors on diagonal
+  for (j in 1:ncol(w.mat)) {
+    if (i==j) {
+      w.mat[i,j] <- num.neigh[i]
+    }
+  }
+}
+# w.mat <- array(NA, dim=c(n.stzipcode,n.zipcode,n.countries))
+# w.mat[,,1] <- ifelse(neighb.mat==1,-1,neighb.mat) # Replace 1 with -1
+# num.neigh <- colSums(neighb.mat) # Count the number of neighbors for each state
+# for (i in 1:nrow(w.mat[,,1])) { # Put the number of neighbors on diagonal
+#   for (j in 1:ncol(w.mat[,,1])) {
+#     if (i==j) {
+#       w.mat[i,j,1] <- num.neigh[i]
+#     }
+#   }
+# }
+
+
+```
