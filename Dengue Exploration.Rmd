@@ -33,6 +33,9 @@ library(viridis)
 ## Import the Data and Combine Incidence and Population Data
 ```{r}
 # import the data
+
+### we only have 132 districts' historical dengue incidence, and only 127 districts' population
+
 library(readxl)
 MDR_Dengue_Cases <- read_excel("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/CONFIDENTIAL/MDR Dengue Cases.xlsx")
 MDR_district_cases_pop <- read_excel("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/CONFIDENTIAL/updated - MDR district dengue cases & population.xlsx", 
@@ -644,7 +647,7 @@ ggplot()+
 
 # incidence map
 ggplot(data = MDR_Dengue_map)+
-  geom_sf(aes(fill = DHF_incidence), color = "black", size = 0.25)+
+  geom_sf(aes(fill = DHF_incidence), lwd = 0, size = 0.25)+
   scale_fill_distiller(name = "DHF Incidence per 100,000 people", 
                        palette = "Reds", 
                        direction = 1,
@@ -656,7 +659,7 @@ ggplot(data = MDR_Dengue_map)+
   labs(title = "DHF Incidence in MDR 2001-2018")
 
 ggplot(data = MDR_Dengue_map)+
-  geom_sf(aes(fill = log(DHF_incidence)), color = "black", size = 0.25)+
+  geom_sf(aes(fill = log(DHF_incidence)), lwd = 0, size = 0.25)+
   scale_fill_distiller(name = "Log DHF Incidence per 100,000 people", 
                        palette = "Reds", 
                        direction = 1,
@@ -669,7 +672,7 @@ ggplot(data = MDR_Dengue_map)+
 
 #incidence maps by year
 ggplot(data = MDR_Dengue_map)+
-  geom_sf(aes(fill = log(DHF_incidence)), color = "black", size = 0.25)+
+  geom_sf(aes(fill = log(DHF_incidence)), lwd = 0, size = 0.25)+
   facet_wrap(~factor(year))+
   scale_fill_distiller(name = "Log DHF Incidence per 100,000 people", 
                        palette = "Reds", 
@@ -683,7 +686,7 @@ ggplot(data = MDR_Dengue_map)+
 
 #incidence maps by month
 ggplot(data = MDR_monthly_dengue_map)+
-  geom_sf(aes(fill = log(m_DHF_incidence)), color = "black", size = 0.25)+
+  geom_sf(aes(fill = log(m_DHF_incidence)), lwd = 0, size = 0.25)+
   facet_wrap(~factor(monthvar))+
   scale_fill_distiller(name = "Log DHF Incidence per 100,000 people", 
                        palette = "Reds", 
@@ -718,7 +721,7 @@ MDR_monthly_average_map <- MDR_monthly_average_map %>%
                names_to = "month")
 
   ggplot(data = MDR_monthly_average_map)+
-  geom_sf(aes(fill = m_avg_DHF_cases, na.rm = T), color = "black", size = 0.25)+
+  geom_sf(aes(fill = m_avg_DHF_cases, na.rm = T), lwd = 0, size = 0.25)+
   facet_wrap(~factor(month))+
   scale_fill_distiller(name = "DHF Cases", 
                        palette = "Reds", 
@@ -731,7 +734,7 @@ MDR_monthly_average_map <- MDR_monthly_average_map %>%
   labs(title = "Average Monthly DHF Cases 2001 - 2018", subtitle = "Grouped by month")
   
   
-  # try to turn off borders
+
   # make sure month 7 has 134 rows
   # and check the number of districts in the map file and the incidence data
 
