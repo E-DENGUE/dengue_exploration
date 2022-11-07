@@ -18,6 +18,8 @@ library(maptools) # shapefiles again
 library(spdep) # still shapefiles 
 library(ggmap) # plotting shapefiles 
 library(sf)
+library(dplyr)
+library(tidyverse)
 
 ```
 
@@ -59,6 +61,8 @@ neighb # Avg Number of links = 5.19403
 # B is the basic binary coding, W is row standardised (both are commonly used)
 neighb.mat <- nb2mat(neighb, zero.policy = T, style = 'B')
 
+    # the island will not have neighbors, so need to exclude it at first
+
 # For Leroux model, neighbor matrix needs to have 0 if not neighboring, -1 if 
 # neighbor, and # of neighbors for each state on diagonal), so...
 w.mat <- ifelse(neighb.mat==1,-1,neighb.mat)
@@ -81,5 +85,76 @@ for (i in 1:nrow(w.mat)) { # Put the number of neighbors on diagonal
 #   }
 # }
 
+
+```
+
+## Set up Data Frame for Model Training
+```{r}
+MDR_Dengue_map
+updated_MDR_Dengue_Cases_map
+
+# create data frame
+base_model_2001_2006 <- fortify(MDR_Dengue_map) %>%
+  select(VARNAME_2, ENGTYPE_2, district, province, total_DHF_cases, year, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, updated_district_code.y, pop, DHF_incidence, log_DHF_incidence, geometry) %>%
+  filter(year >= 2001 | year <= 2006)
+
+# make month 12 data missing
+base_model_2001_2006 <- base_model_2001_2006 %>%
+  mutate(m12 = NA)
+
+# rotate month variables into one column
+base_model_2001_2006 <- base_model_2001_2006 %>%
+  pivot_longer(cols = starts_with("m"), 
+               values_to = "m_DHF_cases", 
+               names_to = "month")
+
+seasonality_matrix <- model.matrix(~ as.factor(month), data = base_model_2001_2006)
+
+```
+
+
+
+## Example Code of CAR AR from Josh
+```{r}
+###############################################################
+
+#Model Fitting
+
+###############################################################
+
+results<-ST.CARar(y_model#m_DHF_cases
+                  ~ 0 # as.factor(month) 
+                  + offset(offset_model) 
+                  #+ x_model #make with month and m_DHF_cases,
+                  #, data = base_model_2001_2006
+
+                  family = "poisson",
+
+                  W = neighbors_mat,
+
+                  burnin = 100000, # start much lower, then send to cluster
+
+                  n.sample = 1100000,
+
+                  thin = 1000,
+
+                  prior.mean.beta = rep(0,
+
+                                        times = ncol(x_model) - 1),
+
+                  prior.var.beta = rep((100^2),
+
+                                       times = ncol(x_model) - 1),
+
+
+                  prior.tau2 = c(0.01, 0.01),
+
+                  MALA = TRUE,
+
+                  verbose = TRUE)
+
+results$summary.results
+
+# want to look at the trace plots for seasonality, overall fitted value (probably won't converge with lower numbers of runs)
 
 ```
