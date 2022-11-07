@@ -95,12 +95,14 @@ updated_MDR_Dengue_Cases_map
 
 # create data frame
 base_model_2001_2006 <- fortify(MDR_Dengue_map) %>%
-  select(VARNAME_2, ENGTYPE_2, district, province, total_DHF_cases, year, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, updated_district_code.y, pop, DHF_incidence, log_DHF_incidence, geometry) %>%
-  filter(year >= 2001 | year <= 2006)
+  select(VARNAME_2, ENGTYPE_2, district, province, total_DHF_cases, year, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, updated_district_code.y, pop, DHF_incidence, log_DHF_incidence, geometry) 
+
+base_model_2001_2006 <- base_model_2001_2006 %>% 
+  filter(between(year, 2001, 2006))
 
 # make month 12 data missing
 base_model_2001_2006 <- base_model_2001_2006 %>%
-  mutate(m12 = NA)
+  mutate(m12 = case_when(year == 2006 ~ NA))
 
 # rotate month variables into one column
 base_model_2001_2006 <- base_model_2001_2006 %>%
@@ -110,11 +112,14 @@ base_model_2001_2006 <- base_model_2001_2006 %>%
 
 seasonality_matrix <- model.matrix(~ as.factor(month), data = base_model_2001_2006)
 
+x_model <- base_model_2001_2006 %>%
+  select(m_DHF_cases, month)
+
 ```
 
 
 
-## Example Code of CAR AR from Josh
+## Base Model (based on code from Josh)
 ```{r}
 ###############################################################
 
@@ -122,21 +127,18 @@ seasonality_matrix <- model.matrix(~ as.factor(month), data = base_model_2001_20
 
 ###############################################################
 
-results<-ST.CARar(y_model#m_DHF_cases
-                  ~ 0 # as.factor(month) 
-                  + offset(offset_model) 
-                  #+ x_model #make with month and m_DHF_cases,
-                  #, data = base_model_2001_2006
+results<-ST.CARar(m_DHF_cases ~ as.factor(month) + offset(offset_model) 
+                  + x_model, data = base_model_2001_2006,
 
                   family = "poisson",
 
-                  W = neighbors_mat,
+                  W = neighb.mat,
 
-                  burnin = 100000, # start much lower, then send to cluster
+                  burnin = 10, 
 
-                  n.sample = 1100000,
+                  n.sample = 100,
 
-                  thin = 1000,
+                  thin = 10,
 
                   prior.mean.beta = rep(0,
 
