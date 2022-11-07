@@ -480,23 +480,8 @@ ggplot(vinh_long_cases, aes(x = year, y = total_DHF_cases, group=district, col =
 
 ```
 
-## Time Series 
+## Basic Time Series for All Districts/Provinces
 ```{r}
-#without splines
-#x <- MDR_Dengue_Cases$year
-#y <- MDR_Dengue_Cases$total_DHF_cases
-#y.lab <- 'Total Annual DHF Cases'
-#x.lab <- 'Year'
-#plot(x, y, cex.lab = 1.1, col="darkgrey", xlab = x.lab, ylab = y.lab,
-#     main = "", bty = 'l')
-
-#with splines
-#library(stats); library(splines); library(gam); library(dlnm)
-
-#fit <- gam::gam(total_DHF_cases ~ year + s(year, 7*18), family = quasipoisson, data = MDR_Dengue_Cases)
-#pr <- predict(fit, type = "terms")
-#x1 <- seq(as.Date("2001-01-01"), as.Date("2018-12-12"), "year")
-#plot(x, pr[, 2], type = "l", lty =2, ylim = range(pr, na.rm = TRUE), ylab = "", xlab = "")
 
 # total DHF cases
 ggplot(updated_MDR_Dengue_Cases, aes(x = year, y = total_DHF_cases, group=district, col = province))+
@@ -564,35 +549,18 @@ ggplot(updated_monthly_DHF_incidence, aes(x = year, y = m_DHF_incidence, group=d
 
 ```
 
-
-
-
 ## Get Province Map
 ```{r}
-
-#Reading in the Shapefile
-#setwd("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/OneDrive_1_9-16-2022")
-
-#MA<-readShapeSpatial('./MDR District Map/DBSCL_Ranh gioi_vung_region.shp')  
-#plot(MA)
-
-
-MDR <- readShapeSpatial('/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/MDR Updated map/VMD_districts_2022.shp')
-plot(MDR)
-
-
-MDR@data
-
-```
-
-## Clean & account for districts/provinces that have split off
-```{r}
-
 MDR_2 <- st_read(dsn = '/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/MDR Updated map/VMD_districts_2022.shp')
 
 MDR_2 %>%
   mutate(MDR_2, VARNAME_2 = as.character(VARNAME_2)) %>%
   mutate(MDR_2, ENGTYPE_2 = as.character(ENGTYPE_2)) 
+
+```
+
+## Clean & account for districts/provinces that have split off
+```{r}
 
 # re-capitalize district names and types to match with the shapefile
 updated_MDR_Dengue_Cases <- updated_MDR_Dengue_Cases %>%
@@ -614,8 +582,6 @@ casenames <- updated_cases$no_symbols_name
 
 check_names <- data.frame(c(unique(varnames), rep(NA, 3)), unique(casenames))
 # varnames is missing Can Tho (code: 28-31, 33, 35 --> 2001-2003), Mo Cay (becomes Mo Cay Bac and Mo Cay Nam in 2009), Duyen Hai (122 and 123, 123 should be a town), Cai Lay (108 and 109, just 109 after 2015 when should be a town, different dengue numbers), Long My (60 and 61, 61 should be a town), Cao Lanh (46 and 47, 47 should be a city), Hong Ngu (49 and 50, 50 should be a city)
- ### need to make sure to fill in before
-
 
 ### fix mapping problem by setting incidence equal in Mo Cay Bac and Mo Cay Nam 2001 - 2008
 updated_MDR_Dengue_Cases_map_1 <- updated_MDR_Dengue_Cases %>%
@@ -703,7 +669,6 @@ updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
   rbind(updated_MDR_Dengue_Cases_map_14)
 
 ```
-
 
 ## Combine Map and Incidence
 ```{r}
@@ -879,96 +844,5 @@ ggplot(MDR_monthly_dengue_heatmap, aes(year, monthvar, fill = scaled_cases))+
   geom_tile() +
   labs(x = "Year", y = "Month", title = "Heatmap of MDR DHF Cases")
 
-
-
-
-#MDR_dengue_heatmap_2 <- MDR_dengue_heatmap_2 %>%
-#  group_by(VARNAME_2, monthvar) %>%
-#  mutate(m_scaled_cases = m_DHF_cases/max(m_DHF_cases))
-#p <- ggplot(MDR_dengue_heatmap_2, aes(monthvar, province, fill = m_scaled_cases))+
-#      geom_tile(color = "white", size = 0.1)+
-#      scale_fill_viridis(name = "Monthly DHF Cases", option = "C")
-#p <- p + facet_grid(year)
-#p <- p + scale_y_continuous(trans = "reverse", breaks = unique(MDR_dengue_heatmap_2$province))
-#p <- p + scale_x_continuous(breaks = c(1:12))
-#p <-p + theme_minimal(base_size = 8)
-#p <-p + labs(title= paste("Monthly DHF Cases"), x="Month", y="Province")
-#p <-p + theme(legend.position = "bottom")+
-#  theme(plot.title=element_text(size = 14))+
-#  theme(axis.text.y=element_text(size=6)) +
-#  theme(strip.background = element_rect(colour="white"))+
-#  theme(plot.title=element_text(hjust=0))+
-#  theme(axis.ticks=element_blank())+
-#  theme(axis.text=element_text(size=7))+
-#  theme(legend.title=element_text(size=8))+
-#  theme(legend.text=element_text(size=6))
-  #removeGrid()
-#p
-
-
-
-color <- rev(viridis(10))
 ```
 
-
-## Incidence maps by year 
-```{r}
-MDR_dengue_heatmap %>%
-  ggplot()+
-  geom_sf(aes(fill = scaled_cases), color = "black", size = 0.25)+
-  scale_fill_distiller(name = "DHF Cases", 
-                       palette = "Reds", 
-                       breaks = pretty_breaks())+
-  facet_wrap(~year, ncol = 6) +
-   theme(axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        panel.background = element_rect(fill = "white", color = NA)) +
-  labs(title = "Scaled DHF Cases in MDR 2001-2018") 
-
-# 2001
-MDR_dengue_heatmap_2001 <- MDR_dengue_heatmap %>%
-  filter(year == 2001) 
-
- ggplot()+
-     geom_sf(aes(fill = scaled_cases), color = "black", size = 0.25)+
-  scale_fill_distiller(name = "DHF Cases", 
-                       palette = "Reds", 
-                       breaks = pretty_breaks())+
-  facet_wrap(~, ncol = 6) +
-   theme(axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        panel.background = element_rect(fill = "white", color = NA)) +
-  labs(title = "Scaled DHF Cases in MDR 2001")
-
-MDR_dengue_map_2001 %>%
-  ggplot()+
-  geom_sf(aes(fill = scaled_cases), color = "black", size = 0.25)+
-  scale_fill_distiller(name = "DHF Cases", 
-                       palette = "Reds", 
-                       breaks = pretty_breaks())+
-   theme(axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        panel.background = element_rect(fill = "white", color = NA)) +
-  labs(title = "DHF Cases per 100,000 People in MDR 2001")
-
-#2002
-MDR_dengue_map_2002 <- MDR_dengue_heatmap %>%
-  filter(year == 2002)
-
-MDR_dengue_map_2002 %>%
-  ggplot()+
-  geom_sf(aes(fill = scaled_cases), color = "black", size = 0.25)+
-  scale_fill_distiller(name = "DHF Cases", 
-                       palette = "RdBu", 
-                       breaks = pretty_breaks())+
-   theme(axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        panel.background = element_rect(fill = "white", color = NA)) +
-  labs(title = "Scaled DHF Cases in MDR 2002")
-
-
-```
