@@ -35,11 +35,10 @@ library(viridis)
 # import the data
 
 ### we only have 132 districts' historical dengue incidence, and only 127 districts' population
-
-library(readxl)
-MDR_Dengue_Cases <- read_excel("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/CONFIDENTIAL/MDR Dengue Cases.xlsx")
-MDR_district_cases_pop <- read_excel("~/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/CONFIDENTIAL/updated - MDR district dengue cases & population.xlsx", 
-    sheet = "pop")
+    # try to convert all to csv and then look at the last row --> is it super long??????
+    # check to make sure the csv looks the same in r (unmbers/decimals)
+MDR_Dengue_Cases <- read_csv("Data/CONFIDENTIAL/MDR Dengue Cases.csv")
+MDR_district_cases_pop <- read_csv("Data/CONFIDENTIAL/updated - population.csv")
 
 # rename columns and change variable structures
 MDR_district_cases_pop <- MDR_district_cases_pop %>%
@@ -48,7 +47,8 @@ MDR_district_cases_pop <- MDR_district_cases_pop %>%
   rename('updated_district_code' = 'District code - Updated MDR map') %>%
   mutate(Province = str_replace(Province, "Can Tho city", "Can Tho")) %>%
   mutate(no_symbols_name = tolower(no_symbols_name),
-         symbols_name = tolower(symbols_name))
+         symbols_name = tolower(symbols_name)) %>%
+  dplyr::select(-'...7', -'...8', -'...9', -'...10', -'...11', -'...12')
 
 MDR_Dengue_Cases <- MDR_Dengue_Cases %>%
   mutate(district = tolower(district)) %>%
@@ -65,7 +65,7 @@ updated_MDR_Dengue_Cases <- left_join(MDR_Dengue_Cases, MDR_district_cases_pop, 
 # fixed mo cay district --> combine populations of mo cay nam and mo cay bac based on updated district codes
 # fixed cần thơ not --> combine Binh Thuy, Co Do, Cai Rang, Ninh Kieu, Phong Dien, Thoi Lai based on updated district codes 
 
-str(updated_MDR_Dengue_Cases)
+  
 
 
 ```
@@ -116,10 +116,6 @@ updated_MDR_Dengue_Cases <- updated_MDR_Dengue_Cases %>%
     no_symbols_name %in% District ~ "district"
   )) 
 
-
-  
-
-
 ```
 
 ## Continue Cleaning
@@ -135,7 +131,9 @@ updated_MDR_Dengue_Cases <- updated_MDR_Dengue_Cases %>%
     no_symbols_name %in% Town ~ "town", 
     no_symbols_name %in% Urban_District ~ "urban district", 
     no_symbols_name %in% District ~ "district"
-  )) 
+  ))
+
+
 
 # create incidence per 100,000 people column
 updated_MDR_Dengue_Cases <- updated_MDR_Dengue_Cases %>%
@@ -587,12 +585,10 @@ MDR@data
 
 ```
 
-## Combine Map and Incidence Data
+## Clean & account for districts/provinces that have split off
 ```{r}
 
 MDR_2 <- st_read(dsn = '/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/MDR Updated map/VMD_districts_2022.shp')
-
-MDR@data
 
 MDR_2 %>%
   mutate(MDR_2, VARNAME_2 = as.character(VARNAME_2)) %>%
@@ -605,17 +601,123 @@ updated_MDR_Dengue_Cases <- updated_MDR_Dengue_Cases %>%
 updated_monthly_DHF_incidence <- updated_monthly_DHF_incidence %>%
   mutate(no_symbols_name = str_to_title(no_symbols_name), 
          district_type = str_to_title(district_type))
-  
-MDR_Dengue_map <- left_join(MDR_2, updated_MDR_Dengue_Cases, by = c("VARNAME_2" = "no_symbols_name", "ENGTYPE_2" = "district_type"))
+
+### check why map is missing districts
+MDR_3 <- MDR_2 %>%
+  arrange(VARNAME_2)
+updated_cases <- updated_MDR_Dengue_Cases %>%
+  group_by(year) %>%
+  arrange(no_symbols_name)
+
+varnames <- rep(MDR_3$VARNAME_2, 19)
+casenames <- updated_cases$no_symbols_name
+
+check_names <- data.frame(c(unique(varnames), rep(NA, 3)), unique(casenames))
+# varnames is missing Can Tho (code: 28-31, 33, 35 --> 2001-2003), Mo Cay (becomes Mo Cay Bac and Mo Cay Nam in 2009), Duyen Hai (122 and 123, 123 should be a town), Cai Lay (108 and 109, just 109 after 2015 when should be a town, different dengue numbers), Long My (60 and 61, 61 should be a town), Cao Lanh (46 and 47, 47 should be a city), Hong Ngu (49 and 50, 50 should be a city)
+ ### need to make sure to fill in before
+
+
+### fix mapping problem by setting incidence equal in Mo Cay Bac and Mo Cay Nam 2001 - 2008
+updated_MDR_Dengue_Cases_map_1 <- updated_MDR_Dengue_Cases %>%
+  filter(no_symbols_name == "Mo Cay") %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "Mo Cay", "Mo Cay Bac"))
+updated_MDR_Dengue_Cases_map_2 <- updated_MDR_Dengue_Cases %>%
+  filter(no_symbols_name == "Mo Cay") %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "Mo Cay", "Mo Cay Nam"))
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases %>%
+  rbind(updated_MDR_Dengue_Cases_map_1, updated_MDR_Dengue_Cases_map_2)
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
+  dplyr::filter(updated_MDR_Dengue_Cases_map$no_symbols_name != "Mo Cay")
+
+### fix map problem by setting incidence equal in Binh Thuy (28), Co Do (29), Cai Rang (30), Ninh Kieu (31), Phong Dien (33), Thoi Lai (35) --> 2001-2003
+updated_MDR_Dengue_Cases_map_3 <- updated_MDR_Dengue_Cases %>%
+  filter(no_symbols_name == "Can Tho") %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "Can Tho", "Binh Thuy"))
+updated_MDR_Dengue_Cases_map_4 <- updated_MDR_Dengue_Cases %>%
+  filter(no_symbols_name == "Can Tho") %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "Can Tho", "Co Do"))
+updated_MDR_Dengue_Cases_map_5 <- updated_MDR_Dengue_Cases %>%
+  filter(no_symbols_name == "Can Tho") %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "Can Tho", "Cai Rang"))
+updated_MDR_Dengue_Cases_map_6 <- updated_MDR_Dengue_Cases %>%
+  filter(no_symbols_name == "Can Tho") %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "Can Tho", "Ninh Kieu"))
+updated_MDR_Dengue_Cases_map_7 <- updated_MDR_Dengue_Cases %>%
+  filter(no_symbols_name == "Can Tho") %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "Can Tho", "Phong Dien"))
+updated_MDR_Dengue_Cases_map_8 <- updated_MDR_Dengue_Cases %>%
+  filter(no_symbols_name == "Can Tho") %>%
+  mutate(no_symbols_name = str_replace(no_symbols_name, "Can Tho", "Thoi Lai"))
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
+  rbind(updated_MDR_Dengue_Cases_map_3, updated_MDR_Dengue_Cases_map_4, updated_MDR_Dengue_Cases_map_5, updated_MDR_Dengue_Cases_map_6, updated_MDR_Dengue_Cases_map_7, updated_MDR_Dengue_Cases_map_8)
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
+  dplyr::filter(updated_MDR_Dengue_Cases_map$no_symbols_name != "Can Tho")
+
+# fix mapping problem --> Duyen Hai (122 and 123, 123 should be a town)
+updated_MDR_Dengue_Cases_map_9 <- updated_MDR_Dengue_Cases_map %>%
+  filter(`updated_district_code.y` == 123) %>%
+  mutate(district_type = case_when(
+    `updated_district_code.y` == 123 ~ "Town"))
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
+  rbind(updated_MDR_Dengue_Cases_map_9)
+
+
+# fix mapping problem --> Cai Lay (108 and 109, just 109 after 2015 when should be a town, different dengue numbers)
+updated_MDR_Dengue_Cases_map_10 <- updated_MDR_Dengue_Cases_map %>%
+  filter(`updated_district_code.y` == 109) %>%
+  mutate(district_type = case_when(
+    `updated_district_code.y` == 109 ~ `district_type` == "Town"))
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
+  rbind(updated_MDR_Dengue_Cases_map_10)
+
+# fix mapping problem --> Long My (60 and 61, 61 should be a town)
+updated_MDR_Dengue_Cases_map_11 <- updated_MDR_Dengue_Cases_map %>%
+   filter(`updated_district_code.y` == 61) %>%
+   mutate(district_type = case_when(
+    `updated_district_code.y` == 61 ~ "Town"))
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
+  rbind(updated_MDR_Dengue_Cases_map_11)
+
+# fix mapping problem --> Cao Lanh (46 and 47, 47 should be a city)
+updated_MDR_Dengue_Cases_map_12 <- updated_MDR_Dengue_Cases_map %>%
+  filter(`updated_district_code.y` == 47) %>%
+  mutate(district_type = case_when(
+    `updated_district_code.y` == 47 ~ "City"))
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
+  rbind(updated_MDR_Dengue_Cases_map_12)
+
+# fix mapping problem --> Hong Ngu (49 and 50, 50 should be a city)
+updated_MDR_Dengue_Cases_map_13 <- updated_MDR_Dengue_Cases_map %>%
+  filter(`updated_district_code.y` == 50) %>%
+  mutate(district_type = case_when(
+    `updated_district_code.y` == 50 ~ "City"))
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
+  rbind(updated_MDR_Dengue_Cases_map_13)
+
+# Cai Lay 109 should be a town
+updated_MDR_Dengue_Cases_map_14 <- updated_MDR_Dengue_Cases_map %>%
+  filter(`updated_district_code.y` == 109) %>%
+  mutate(district_type = case_when(
+    `updated_district_code.y` == 109 ~ "Town"))
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
+  rbind(updated_MDR_Dengue_Cases_map_14)
+
+```
+
+
+## Combine Map and Incidence
+```{r}
+MDR_Dengue_map <- left_join(MDR_2, updated_MDR_Dengue_Cases_map, by = c("VARNAME_2" = "no_symbols_name", "ENGTYPE_2" = "district_type"))
 
 MDR_monthly_dengue_map <- left_join(MDR_2, updated_monthly_DHF_incidence, by = c("VARNAME_2" = "no_symbols_name", "ENGTYPE_2" = "district_type"))
 ```
 
 ## Map DHF Incidence Data 
 ```{r}
+library(plotly)
 # total case map
-ggplot(data = MDR_Dengue_map)+
-  geom_sf(aes(fill = total_DHF_cases), color = "black", size = 0.25)+
+g <- ggplot(data = MDR_Dengue_map)+
+  geom_sf(aes(fill = total_DHF_cases, names = VARNAME_2), color = "black", size = 0.25)+
   scale_fill_distiller(name = "DHF Cases", 
                        palette = "Blues", 
                        direction = 1,
@@ -625,6 +727,8 @@ ggplot(data = MDR_Dengue_map)+
         axis.ticks = element_blank(),
         panel.background = element_rect(fill = "white", color = NA)) +
   labs(title = "Total DHF Cases in MDR 2001-2018")
+# ggplotly(g)
+g
 
 # case map with district population included 
 st_geometry_type(MDR_Dengue_map, by_geometry=FALSE)
@@ -734,11 +838,6 @@ MDR_monthly_average_map <- MDR_monthly_average_map %>%
   labs(title = "Average Monthly DHF Cases 2001 - 2018", subtitle = "Grouped by month")
   
   
-
-  # make sure month 7 has 134 rows
-  # and check the number of districts in the map file and the incidence data
-
-  #test
 ```
 
 
