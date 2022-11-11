@@ -20,6 +20,7 @@ library(ggmap) # plotting shapefiles
 library(sf)
 library(dplyr)
 library(tidyverse)
+library(CARBayesST)
 
 ```
 
@@ -53,7 +54,7 @@ neighb <- poly2nb(MDR_2, queen = T, snap = sqrt(0.001))
 # Check average number of links -- increase snap distance if it says there is 
 # a zip with zero neighbors
 neighb # Avg Number of links = 5.19403 
-  # regions 74 nand 76 have no links, regardless of the snap size??
+  # regions 74 nand 76 have no links --> islands Kien Hai/District + Phu Quoc/City
 
 # Make neighbor matrix 
 # if zero.policy FALSE stop with error for any empty neighbour sets, 
@@ -62,6 +63,10 @@ neighb # Avg Number of links = 5.19403
 neighb.mat <- nb2mat(neighb, zero.policy = T, style = 'B')
 
     # the island will not have neighbors, so need to exclude it at first
+neighb.mat_1 <- neighb.mat[-74, -74]
+neighb.mat_2 <- neighb.mat_1[-75, -75]
+
+
 
 # For Leroux model, neighbor matrix needs to have 0 if not neighboring, -1 if 
 # neighbor, and # of neighbors for each state on diagonal), so...
@@ -91,11 +96,10 @@ for (i in 1:nrow(w.mat)) { # Put the number of neighbors on diagonal
 ## Set up Data Frame for Model Training
 ```{r}
 MDR_Dengue_map
-updated_MDR_Dengue_Cases_map
 
 # create data frame
 base_model_2001_2006 <- fortify(MDR_Dengue_map) %>%
-  select(VARNAME_2, ENGTYPE_2, district, province, total_DHF_cases, year, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, updated_district_code.y, pop, DHF_incidence, log_DHF_incidence, geometry) 
+  dplyr::select(VARNAME_2, ENGTYPE_2, district, province, total_DHF_cases, year, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, updated_district_code.y, pop, DHF_incidence, log_DHF_incidence, geometry) 
 
 base_model_2001_2006 <- base_model_2001_2006 %>% 
   filter(between(year, 2001, 2006))
@@ -110,10 +114,27 @@ base_model_2001_2006 <- base_model_2001_2006 %>%
                values_to = "m_DHF_cases", 
                names_to = "month")
 
-seasonality_matrix <- model.matrix(~ as.factor(month), data = base_model_2001_2006)
+# take out islands Kien Hai/District + Phu Quoc/City
+base_model_2001_2006_1 <- base_model_2001_2006 %>%
+  filter(VARNAME_2 != "Kien Hai", 
+         VARNAME_2 != "Phu Quoc")
 
+
+#seasonality_matrix <- model.matrix(~ as.factor(month), data = base_model_2001_2006)
+
+# x_model for seasonality
 x_model <- base_model_2001_2006 %>%
-  select(m_DHF_cases, month)
+  dplyr::select(m_DHF_cases, month)
+
+x_model_1 <- base_model_2001_2006_1 %>%
+  dplyr::select(m_DHF_cases, month)
+
+# checking normality of population dist for offset model
+hist(MDR_Dengue_map$pop, breaks = 20) 
+hist(base_model_2001_2006_1$pop, breaks = 20) 
+
+# set offset model
+offset_model <- log(base_model_2001_2006_1$pop)
 
 ```
 
@@ -127,8 +148,9 @@ x_model <- base_model_2001_2006 %>%
 
 ###############################################################
 
+
 results<-ST.CARar(m_DHF_cases ~ as.factor(month) + offset(offset_model) 
-                  + x_model, data = base_model_2001_2006,
+                  + x_model, data = base_model_2001_2006_1,
 
                   family = "poisson",
 
@@ -138,18 +160,20 @@ results<-ST.CARar(m_DHF_cases ~ as.factor(month) + offset(offset_model)
 
                   n.sample = 100,
 
-                  thin = 10,
+                  thin = 5,
 
                   prior.mean.beta = rep(0,
 
-                                        times = ncol(x_model) - 1),
+                                        times = ncol(x_model_1) - 1),
 
                   prior.var.beta = rep((100^2),
 
-                                       times = ncol(x_model) - 1),
+                                       times = ncol(x_model_1) - 1),
 
 
                   prior.tau2 = c(0.01, 0.01),
+                  
+                  AR = 1,
 
                   MALA = TRUE,
 
@@ -160,3 +184,71 @@ results$summary.results
 # want to look at the trace plots for seasonality, overall fitted value (probably won't converge with lower numbers of runs)
 
 ```
+
+## Tried Running
+
+```{r}
+###############################################################
+
+#Model Fitting
+
+###############################################################
+library(CARBayesST)
+length(base_model_2001_2006$m_DHF_cases)
+length(base_model_2001_2006$month)
+length(x_model$m_DHF_cases)
+length(neighb.mat)
+
+results<-ST.CARar(m_DHF_cases ~ as.factor(month), 
+                  data = base_model_2001_2006_1,
+
+                  family = "poisson",
+
+                  W = neighb.mat_2,
+
+                  burnin = 10, 
+
+                  n.sample = 100,
+
+                  thin = 5,
+
+                  prior.mean.beta = rep(0,
+
+                                        times = ncol(base_model_2001_2006_1) - 1),
+
+                  prior.var.beta = rep((100^2),
+
+                                       times = ncol(base_model_2001_2006_1) - 1),
+
+
+                  prior.tau2 = c(0.01, 0.01),
+                  
+                  AR = 1,
+
+                  MALA = TRUE,
+
+                  verbose = TRUE)
+
+results$summary.results
+
+# want to look at the trace plots for seasonality, overall fitted value (probably won't converge with lower numbers of runs)
+
+```
+Warning in rnorm(n = length(beta.mean), mean = beta.mean, sd = beta.sd) :
+  NAs produced
+Warning in rnorm(n = N.all, mean = 0, sd = res.sd) : NAs produced
+Warning in matrix(offset, nrow = K, ncol = N, byrow = FALSE) :
+  data length [54744] is not a sub-multiple or multiple of the number of rows [132]
+Warning in matrix(X.standardised %*% beta, nrow = K, ncol = N, byrow = FALSE) :
+  data length [54744] is not a sub-multiple or multiple of the number of rows [132]
+Warning in matrix(phi, nrow = K, ncol = N, byrow = FALSE) :
+  data length [54744] is not a sub-multiple or multiple of the number of rows [132]
+Generating 18 post burnin and thinned (if requested) samples.
+  |                                                                                 |   0%Warning in rpois(n = n.miss, lambda = fitted[which.miss == 0]) :
+  NAs produced
+Warning in matrix(Y.DA, nrow = K, ncol = N, byrow = FALSE) :
+  data length [54744] is not a sub-multiple or multiple of the number of rows [132]
+Warning in matrix(X.standardised %*% beta, nrow = K, ncol = N, byrow = FALSE) :
+  data length [54744] is not a sub-multiple or multiple of the number of rows [132]
+Warning in rgamma(1, tau2.shape, scale = (1/tau2.scale)) : NAs produced
+Error in if (prob > runif(1)) { : missing value where TRUE/FALSE needed
