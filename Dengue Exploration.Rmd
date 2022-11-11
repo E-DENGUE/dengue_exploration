@@ -675,6 +675,7 @@ updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
 MDR_Dengue_map <- left_join(MDR_2, updated_MDR_Dengue_Cases_map, by = c("VARNAME_2" = "no_symbols_name", "ENGTYPE_2" = "district_type"))
 
 MDR_monthly_dengue_map <- left_join(MDR_2, updated_monthly_DHF_incidence, by = c("VARNAME_2" = "no_symbols_name", "ENGTYPE_2" = "district_type"))
+
 ```
 
 ## Map DHF Incidence Data 
