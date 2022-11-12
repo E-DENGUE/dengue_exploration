@@ -55,12 +55,11 @@ MDR_Dengue_Cases <- MDR_Dengue_Cases %>%
   mutate(district = str_replace(district, "h. vĩnh lợi", "vĩnh lợi")) %>%
   mutate(district = str_replace(district, "mỏ cày/mỏ cày nam", "mỏ cày nam")) %>%
   mutate(district = str_replace(district, "tx. cao lãnh", "tp. cao lãnh")) %>%
-  mutate(district = str_replace(district, "tiểu cần", "tiêu cần"))
- 
+  mutate(district = str_replace(district, "tiểu cần", "tiêu cần")) 
 
   
 
-updated_MDR_Dengue_Cases <- left_join(MDR_Dengue_Cases, MDR_district_cases_pop, by = c("district" = "symbols_name"), na.rm = na.rm)
+updated_MDR_Dengue_Cases <- left_join(MDR_Dengue_Cases, MDR_district_cases_pop, by = c("province" = "Province", "district" = "symbols_name"), na.rm = na.rm)
 
 # fixed mo cay district --> combine populations of mo cay nam and mo cay bac based on updated district codes
 # fixed cần thơ not --> combine Binh Thuy, Co Do, Cai Rang, Ninh Kieu, Phong Dien, Thoi Lai based on updated district codes 
@@ -668,15 +667,48 @@ updated_MDR_Dengue_Cases_map_14 <- updated_MDR_Dengue_Cases_map %>%
 updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
   rbind(updated_MDR_Dengue_Cases_map_14)
 
+### make provinces match the ones in the shapefile
+updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
+  mutate(province = str_replace(province, "An Giang", "An Giang"), 
+         province = str_replace(province, "Bac Lieu", "Bạc Liêu"), 
+         province = str_replace(province, "Ben Tre" , "Bến Tre"), 
+         province = str_replace(province, "Ca Mau" , "Cà Mau"),
+         province = str_replace(province, "Can Tho" , "Cần Thơ"),
+         province = str_replace(province, "Dong Thap" , "Đồng Tháp"),
+         province = str_replace(province, "Hau Giang" , "Hậu Giang"),
+         province = str_replace(province, "Kien Giang" , "Kiên Giang"),
+         province = str_replace(province, "Long An" , "Long An"),
+         province = str_replace(province, "Soc Trang" , "Sóc Trăng"),
+         province = str_replace(province, "Tien Giang" , "Tiền Giang"),
+         province = str_replace(province, "Tra Vinh" , "Trà Vinh"),
+         province = str_replace(province, "Vinh Long" , "Vĩnh Long"))
+
+
 ```
 
 ## Combine Map and Incidence
 ```{r}
-MDR_Dengue_map <- left_join(MDR_2, updated_MDR_Dengue_Cases_map, by = c("VARNAME_2" = "no_symbols_name", "ENGTYPE_2" = "district_type"))
+# join by province, district, and district type
+MDR_Dengue_map <- left_join(MDR_2, updated_MDR_Dengue_Cases_map, by = c("NAME_1" = "province", "VARNAME_2" = "no_symbols_name", "ENGTYPE_2" = "district_type"))
 
+
+## has not been updated
 MDR_monthly_dengue_map <- left_join(MDR_2, updated_monthly_DHF_incidence, by = c("VARNAME_2" = "no_symbols_name", "ENGTYPE_2" = "district_type"))
 
 ```
+
+## Fix Mapping DF
+```{r}
+
+MDR_Dengue_map_1 <- MDR_Dengue_map %>%
+  select(-province) %>%
+  dplyr::arrange(NAME_1, VARNAME_2, ENGTYPE_2, year) %>%
+  group_by(NAME_1, VARNAME_2, ENGTYPE_2, year) %>%
+  distinct()
+
+```
+
+
 
 ## Map DHF Incidence Data 
 ```{r}
@@ -693,7 +725,7 @@ g <- ggplot(data = MDR_Dengue_map)+
         axis.ticks = element_blank(),
         panel.background = element_rect(fill = "white", color = NA)) +
   labs(title = "Total DHF Cases in MDR 2001-2018")
-# ggplotly(g)
+ #ggplotly(g)
 g
 
 # case map with district population included 

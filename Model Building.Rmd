@@ -91,18 +91,50 @@ for (i in 1:nrow(w.mat)) { # Put the number of neighbors on diagonal
 # }
 
 
+# could eventually define neighbors for the islands based on spatial adjacency/transport
+# could also separately analyze them once we have a model and see if it predcits well in them independently
+
 ```
 
 ## Set up Data Frame for Model Training
 ```{r}
-MDR_Dengue_map
 
 # create data frame
 base_model_2001_2006 <- fortify(MDR_Dengue_map) %>%
-  dplyr::select(VARNAME_2, ENGTYPE_2, district, province, total_DHF_cases, year, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, updated_district_code.y, pop, DHF_incidence, log_DHF_incidence, geometry) 
+  dplyr::select(NAME_1, VARNAME_2, ENGTYPE_2, district, total_DHF_cases, year, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, updated_district_code.y, pop, DHF_incidence, log_DHF_incidence, geometry) 
 
 base_model_2001_2006 <- base_model_2001_2006 %>% 
   filter(between(year, 2001, 2006))
+
+# fix districts that are missing years 
+colnames(base_model_2001_2006)
+
+geom_1 <- MDR_Dengue_map[1033, ]$geometry
+
+correction_df <- data.frame(NAME_1 = c(rep("Hậu Giang", 3)),
+                            VARNAME_2 = c(rep("Chau Thanh A", 3)),
+                            ENGTYPE_2 = c(rep("District", 3)),
+                            district = c(rep("châu thành a", 3)),
+                            total_DHF_cases = c(rep(NA, 3)),
+                            year = c(2001, 2002, 2003),
+                            m1 = c(rep(NA, 3)), 
+                            m2 = c(rep(NA, 3)), 
+                            m3 = c(rep(NA, 3)), 
+                            m4 = c(rep(NA, 3)), 
+                            m5 = c(rep(NA, 3)), 
+                            m6 = c(rep(NA, 3)),
+                            m7 = c(rep(NA, 3)),
+                            m8 = c(rep(NA, 3)),
+                            m9 = c(rep(NA, 3)),
+                            m10 = c(rep(NA, 3)),
+                            m11 = c(rep(NA, 3)),
+                            m12 = c(rep(NA, 3)),
+                            updated_district_code.y = c(rep(59, 3)),
+                            pop = c(rep(107700, 3)),
+                            DHF_incidence = c(rep(NA, 3)),
+                            log_DHF_incidence = c(rep(NA, 3)),
+                            geometry = c(rep(geom_1, 3)),)
+
 
 # make month 12 data missing
 base_model_2001_2006 <- base_model_2001_2006 %>%
@@ -136,9 +168,48 @@ hist(base_model_2001_2006_1$pop, breaks = 20)
 # set offset model
 offset_model <- log(base_model_2001_2006_1$pop)
 
+# arrange by month and then province, then district
+
+# need 72 unique obs for each district --> can put in as missing for ones with less 
+
+# if still not working, can throw out the weirds ones at first
 ```
 
+## Check Number of rows for each district before running new model
+want there to be the same number for every district (12*years)
+```{r}
 
+## figuring out problems
+for(j in 1: length(unique(base_model_2001_2006_1$VARNAME_2))){
+  print(sum(base_model_2001_2006_1$VARNAME_2 == unique(base_model_2001_2006_1$VARNAME_2)[j]))
+  if( sum(base_model_2001_2006_1$VARNAME_2 == unique(base_model_2001_2006_1$VARNAME_2)[j]) != 72) {
+    print(unique(base_model_2001_2006_1$VARNAME_2)[j])
+  }
+}
+
+
+
+```
+
+Chau Thanh in Hậu Giang Province begins in 2004
+Phu Tan in Cà Mau begins in 2004
+Dong Hai begins in 2002
+Hoa Binh begins in 2006
+Binh Thuy begins in 2004
+Cai Rang begins in 2004
+Ninh Kieu begins in 2004
+Thoi Lai is missing 2004-2008
+Vinh Thanh begins in 2004
+Nam Can begins in 2004
+Cao Lanh has a district and city --> 36 years
+Chau Thanh A begins in 2004
+Long My District begins in 2004
+Long My Town beings in 2015
+Phung Hiep begins in 2004
+Vi Thanh begins in 2004
+Vi Thuy begins in 2004
+Cu Lao Dung begins in 2003
+Nga Nam begins in 2004
 
 ## Base Model (based on code from Josh)
 ```{r}
@@ -148,13 +219,13 @@ offset_model <- log(base_model_2001_2006_1$pop)
 
 ###############################################################
 
+# default of burnin = 10000, n.sample = 110000, thin = 10
 
-results<-ST.CARar(m_DHF_cases ~ as.factor(month) + offset(offset_model) 
-                  + x_model, data = base_model_2001_2006_1,
+results<-ST.CARar(m_DHF_cases ~ 1, data = base_model_2001_2006_1,
 
                   family = "poisson",
 
-                  W = neighb.mat,
+                  W = neighb.mat_2,
 
                   burnin = 10, 
 
@@ -164,11 +235,11 @@ results<-ST.CARar(m_DHF_cases ~ as.factor(month) + offset(offset_model)
 
                   prior.mean.beta = rep(0,
 
-                                        times = ncol(x_model_1) - 1),
+                                        times = 1),
 
                   prior.var.beta = rep((100^2),
 
-                                       times = ncol(x_model_1) - 1),
+                                       times = 1),
 
 
                   prior.tau2 = c(0.01, 0.01),
@@ -183,7 +254,9 @@ results$summary.results
 
 # want to look at the trace plots for seasonality, overall fitted value (probably won't converge with lower numbers of runs)
 
+
 ```
+
 
 ## Tried Running
 
