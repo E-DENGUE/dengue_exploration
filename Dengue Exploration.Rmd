@@ -639,9 +639,11 @@ updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
 updated_MDR_Dengue_Cases_map_11 <- updated_MDR_Dengue_Cases_map %>%
    filter(`updated_district_code.y` == 61) %>%
    mutate(district_type = case_when(
-    `updated_district_code.y` == 61 ~ "Town"))
+    `updated_district_code.y` == 61 ~ "Town")) %>%
+  mutate(district_type = case_when(
+    `updated_district_code.x` == 61 ~ "Town"))
 updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
-  rbind(updated_MDR_Dengue_Cases_map_11)
+  rbind(updated_MDR_Dengue_Cases_map_11) 
 
 # fix mapping problem --> Cao Lanh (46 and 47, 47 should be a city)
 updated_MDR_Dengue_Cases_map_12 <- updated_MDR_Dengue_Cases_map %>%
@@ -682,6 +684,7 @@ updated_MDR_Dengue_Cases_map <- updated_MDR_Dengue_Cases_map %>%
          province = str_replace(province, "Tien Giang" , "Tiền Giang"),
          province = str_replace(province, "Tra Vinh" , "Trà Vinh"),
          province = str_replace(province, "Vinh Long" , "Vĩnh Long"))
+
 
 
 ```
