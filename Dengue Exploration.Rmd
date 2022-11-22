@@ -703,8 +703,7 @@ MDR_monthly_dengue_map <- left_join(MDR_2, updated_monthly_DHF_incidence, by = c
 ## Fix Mapping DF
 ```{r}
 
-MDR_Dengue_map_1 <- MDR_Dengue_map %>%
-  select(-province) %>%
+MDR_Dengue_map_1 <- fortify(MDR_Dengue_map) %>%
   dplyr::arrange(NAME_1, VARNAME_2, ENGTYPE_2, year) %>%
   group_by(NAME_1, VARNAME_2, ENGTYPE_2, year) %>%
   distinct()
@@ -737,7 +736,7 @@ sdcntrd <- st_centroid(MDR_Dengue_map)
 st_geometry_type(MDR_Dengue_map, by_geometry = FALSE)
 
 ggplot()+
-  geom_sf(data = MDR_Dengue_map, aes(fill = total_DHF_cases), color = "black", size = 0.25)+
+  geom_sf(data = MDR_Dengue_map_1, aes(fill = total_DHF_cases), color = "black", size = 0.25)+
   scale_fill_distiller(name = "DHF Cases", 
                        palette = "Blues", 
                        direction = 1,
@@ -763,7 +762,7 @@ ggplot(data = MDR_Dengue_map)+
         panel.background = element_rect(fill = "white", color = NA)) +
   labs(title = "DHF Incidence in MDR 2001-2018")
 
-ggplot(data = MDR_Dengue_map)+
+ggplot(data = MDR_Dengue_map_1)+
   geom_sf(aes(fill = log(DHF_incidence)), lwd = 0, size = 0.25)+
   scale_fill_distiller(name = "Log DHF Incidence per 100,000 people", 
                        palette = "Reds", 
@@ -776,7 +775,7 @@ ggplot(data = MDR_Dengue_map)+
   labs(title = "DHF Incidence in MDR 2001-2018")
 
 #incidence maps by year
-ggplot(data = MDR_Dengue_map)+
+ggplot(data = MDR_Dengue_map_1)+
   geom_sf(aes(fill = log(DHF_incidence)), lwd = 0, size = 0.25)+
   facet_wrap(~factor(year))+
   scale_fill_distiller(name = "Log DHF Incidence per 100,000 people", 
@@ -846,7 +845,7 @@ MDR_monthly_average_map <- MDR_monthly_average_map %>%
 ```{r}
 
 
-MDR_dengue_heatmap <- MDR_Dengue_map %>%
+MDR_dengue_heatmap <- MDR_Dengue_map_1 %>%
   group_by(VARNAME_2) %>%
   mutate(scaled_cases = total_DHF_cases/max(total_DHF_cases))
 
@@ -867,7 +866,7 @@ ggplot(MDR_dengue_heatmap, aes(year, VARNAME_2, fill = scaled_cases))+
 
 
 # by each province
-ggplot(MDR_dengue_heatmap, aes(year, province, fill = scaled_cases))+
+ggplot(MDR_dengue_heatmap, aes(year, NAME_1, fill = scaled_cases))+
   geom_tile() +
   scale_fill_distiller(name = "Scaled DHF Cases", 
                        palette = "Blues", 

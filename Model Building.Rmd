@@ -95,89 +95,170 @@ for (i in 1:nrow(w.mat)) { # Put the number of neighbors on diagonal
 # could also separately analyze them once we have a model and see if it predcits well in them independently
 
 ```
-
-## Set up Data Frame for Model Training
+## Create an Aggregated DF With Distinct District Names 
 ```{r}
 
 # create data frame
-base_model_2001_2006 <- fortify(MDR_Dengue_map) %>%
+base_model_2001_2006_agg <- fortify(MDR_Dengue_map) %>%
   dplyr::select(NAME_1, VARNAME_2, ENGTYPE_2, district, total_DHF_cases, year, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, updated_district_code.y, pop, DHF_incidence, log_DHF_incidence, geometry) 
 
-base_model_2001_2006 <- base_model_2001_2006 %>% 
-  filter(between(year, 2001, 2006))
+base_model_2001_2006_agg_2 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "An Giang" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh An Giang"))
 
-# fix districts that are missing years 
-colnames(base_model_2001_2006)
+base_model_2001_2006_agg_3 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Bến Tre" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Ben Tre"))
 
-geom_1 <- MDR_Dengue_map[1033, ]$geometry
-geom_2 <- MDR_Dengue_map[713, ]$geometry
-geom_3 <- MDR_Dengue_map[217, ]$geometry
-geom_4 <- MDR_Dengue_map[270, ]$geometry
-geom_5 <- MDR_Dengue_map[481, ]$geometry
-geom_6 <- MDR_Dengue_map[514, ]$geometry
-geom_7 <- MDR_Dengue_map[529, ]$geometry
-geom_8 <- MDR_Dengue_map[598, ]$geometry
-geom_9 <- MDR_Dengue_map[611, ]$geometry
-geom_10 <- MDR_Dengue_map[680, ]$geometry
-geom_11 <- MDR_Dengue_map[1033, ]$geometry
-geom_12 <- MDR_Dengue_map[1048, ]$geometry
-geom_13 <- MDR_Dengue_map[1067, ]$geometry
-geom_14 <- MDR_Dengue_map[1082, ]$geometry
-geom_15 <- MDR_Dengue_map[1097, ]$geometry
-geom_16 <- MDR_Dengue_map[1112, ]$geometry
-geom_17 <- MDR_Dengue_map[1647, ]$geometry
-geom_18 <- MDR_Dengue_map[1735, ]$geometry
+base_model_2001_2006_agg_4 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Đồng Tháp" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Dong Thanp"))
 
-correction_df <- data.frame(NAME_1 = c(rep("Hậu Giang", 3), rep("Cà Mau", 3), "Bạc Liêu", rep("Bạc Liêu", 5), rep("Cần Thơ", 3), rep("Cần Thơ", 3), rep("Cần Thơ", 3), rep("Cần Thơ", 5), rep("Cần Thơ", 3), rep("Cà Mau", 3), rep("Hậu Giang", 3), rep("Hậu Giang", 3), rep("Hậu Giang", 14), rep("Hậu Giang", 3), rep("Hậu Giang", 3), rep("Hậu Giang", 3), rep("Sóc Trăng", 2), rep("Sóc Trăng", 3)),
-                            VARNAME_2 = c(rep("Chau Thanh A", 3), rep("Phu Tan", 3), "Dong Hai", rep("Hoa Binh", 5), rep("Binh Thuy", 3), rep("Cai Rang", 3), rep("Ninh Kieu", 3), rep("Thoi Lai", 5), rep("Vinh Thanh", 3), rep("Nam Can", 3), rep("Chau Thanh A", 3), rep("Long My", 3), rep("Long My", 14), rep("Phung Hiep", 3), rep("Vi Thanh", 3), rep("Vi Thuy", 3), rep("Cu Lao Dung", 2), rep("Nga Nam", 3)),
-                            ENGTYPE_2 = c(rep("District", 3), rep("District", 3), "District", rep("District", 5), rep("Urban District", 3), rep("Urabn District", 3), rep("Urban District", 3), rep("District", 5), rep("District", 3), rep("District", 3), rep("District", 3), rep("District", 3), rep("Town", 14), rep("District", 3), rep("City", 3), rep("District", 3), rep("District", 2), rep("Town", 3)),
-                            district = c(rep("châu thành a", 3), rep("phú tân", 3), "đông hải", rep("hoà bình", 5), rep("bình thủy", 3), rep("cái răng", 3), rep("ninh kiều", 3), rep("thới lai", 5), rep("vĩnh thạnh", 3), rep("năm căn", 3), rep("châu thành a", 3), rep("long mỹ", 3), rep("tx. long mỹ", 14), rep("phụng hiệp", 3), rep("vị thanh", 3), rep("vị thủy", 3), rep("cù lao dung", 2), rep("ngã năm", 3)),
-                            total_DHF_cases = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)),
-                            year = c(2001, 2002, 2003, 2001, 2002, 2003, 2001, 2001, 2002, 2003, 2004, 2005, 2001, 2002, 2003, 2001, 2002, 2003, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2001, 2002, 2003, 2001, 2002, 2003, 2001, 2002, 2003, 2001, 2002, 2003, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2001, 2002, 2003, 2001, 2002, 2003, 2001, 2002, 2003, 2001, 2002, 2001, 2002, 2003),
-                            m1 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)), 
-                            m2 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)), 
-                            m3 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)), 
-                            m4 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)), 
-                            m5 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)), 
-                            m6 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)),
-                            m7 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)),
-                            m8 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)),
-                            m9 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)),
-                            m10 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)),
-                            m11 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)),
-                            m12 = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)),
-                            updated_district_code.y = c(rep(59, 3), rep(42, 3), 13, rep(16, 5), rep(28, 3), rep(30, 3), rep(31, 3), rep(35, 5), rep(36, 3), rep(40, 3), rep(59, 3), rep(60, 3), rep(61, 14), rep(63, 3), rep(64, 3), rep(65, 3), rep(97, 2), rep(102, 3)),
-                            pop = c(rep(107700, 3), rep(105009, 3), 152619, rep(117753, 5), rep(142164, 3), rep(105393, 3), rep(280494, 3), rep(109684, 5), rep(98399, 3), rep(66636, 3), rep(107700, 3), rep(78000, 3), rep(78000, 14), rep(210089, 3), rep(97200, 3), rep(96500, 3), rep(58304, 2), rep(74115, 3)),
-                            DHF_incidence = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)),
-                            log_DHF_incidence = c(rep(NA, 3), rep(NA, 3), NA, rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 5), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 14), rep(NA, 3), rep(NA, 3), rep(NA, 3), rep(NA, 2), rep(NA, 3)),
-                            geometry = c(rep(geom_1, 3), rep(geom_2, 3), geom_3, rep(geom_4, 5), rep(geom_5, 3), rep(geom_6, 3), rep(geom_7, 3), rep(geom_8, 5), rep(geom_9, 3), rep(geom_10, 3), rep(geom_11, 3), rep(geom_12, 3), rep(geom_13, 14), rep(geom_14, 3), rep(geom_15, 3), rep(geom_16, 3), rep(geom_17, 2), rep(geom_18, 3))
-                            )
-correction_df <- correction_df %>%
-  filter(year <= 2006)
-correction_df <- st_sf(correction_df)
+base_model_2001_2006_agg_5 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Hậu Giang" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Hau Giang"))
 
-base_model_2001_2006 <- base_model_2001_2006 %>%
-  rbind(correction_df)
+base_model_2001_2006_agg_6 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Kiên Giang" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Kien Giang"))
 
-# make month 12 data missing
-base_model_2001_2006 <- base_model_2001_2006 %>%
-  mutate(m12 = case_when(year == 2006 ~ NA))
+base_model_2001_2006_agg_7 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Long An" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Long An"))
+ 
+base_model_2001_2006_agg_8 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Sóc Trăng" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Soc Trang")) 
+         
+base_model_2001_2006_agg_9 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Tiền Giang" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Tien Giang"))
+
+base_model_2001_2006_agg_10 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Trà Vinh" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Tra Vinh"))
+
+base_model_2001_2006_agg_11 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "An Giang" & VARNAME_2 == "Phu Tan") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Phu Tan", "Phu Tan An Giang")) 
+      
+base_model_2001_2006_agg_12 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Cà Mau" & VARNAME_2 == "Phu Tan") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Phu Tan", "Phu Tan Ca Mau"))
+
+base_model_2001_2006_agg_13 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Đồng Tháp" & VARNAME_2 == "Cao Lanh" & district == "cao lãnh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Cao Lanh", "Cao Lanh District"))
+
+base_model_2001_2006_agg_14 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Đồng Tháp" & VARNAME_2 == "Cao Lanh" & ENGTYPE_2 == "City") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Cao Lanh", "Cao Lanh City"))
+
+base_model_2001_2006_agg_15 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Đồng Tháp" & VARNAME_2 == "Hong Ngu" & district == "hồng ngự") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Hong Ngu", "Hong Ngu District"))
+
+base_model_2001_2006_agg_16 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Đồng Tháp" & VARNAME_2 == "Hong Ngu" & ENGTYPE_2 == "City") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Hong Ngu", "Hong Ngu City"))
+
+base_model_2001_2006_agg_17 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Hậu Giang" & VARNAME_2 == "Long My" & district == "long mỹ") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Long My", "Long My District"))
+
+base_model_2001_2006_agg_18 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Hậu Giang" & VARNAME_2 == "Long My" & ENGTYPE_2 == "Town") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Long My", "Long My Town"))
+
+base_model_2001_2006_agg_19 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Tiền Giang" & VARNAME_2 == "Cai Lay" & district == "cai lậy") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Cai Lay", "Cai Lay District"))
+
+base_model_2001_2006_agg_20 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Tiền Giang" & VARNAME_2 == "Cai Lay" & ENGTYPE_2 == "Town") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Cai Lay", "Cai Lay Town"))
+
+base_model_2001_2006_agg_21 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Trà Vinh" & VARNAME_2 == "Duyen Hai" & district == "duyên hải") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Duyen Hai", "Duyen Hai District"))
+
+base_model_2001_2006_agg_22 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Trà Vinh" & VARNAME_2 == "Duyen Hai" & ENGTYPE_2 == "Town") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Duyen Hai", "Duyen Hai Town"))
+
+base_model_2001_2006_agg_filter <- rbind(base_model_2001_2006_agg, base_model_2001_2006_agg_2, base_model_2001_2006_agg_3, base_model_2001_2006_agg_4, base_model_2001_2006_agg_5, base_model_2001_2006_agg_6, base_model_2001_2006_agg_7, base_model_2001_2006_agg_8, base_model_2001_2006_agg_9, base_model_2001_2006_agg_10, base_model_2001_2006_agg_11, base_model_2001_2006_agg_12, base_model_2001_2006_agg_13, base_model_2001_2006_agg_14, base_model_2001_2006_agg_15, base_model_2001_2006_agg_16, base_model_2001_2006_agg_17, base_model_2001_2006_agg_18, base_model_2001_2006_agg_19, base_model_2001_2006_agg_20, base_model_2001_2006_agg_21, base_model_2001_2006_agg_22)
+
+names_to_delete <- c("Chau Thanh", "Phu Tan", "Cao Lanh", "Hong Ngu", "Long My", "Cai Lay", "Duyen Hai")
+
+base_model_2001_2006_agg_filter <- base_model_2001_2006_agg_filter %>%
+  filter(!(VARNAME_2 %in% names_to_delete))
 
 # rotate month variables into one column
-base_model_2001_2006 <- base_model_2001_2006 %>%
+base_model_2001_2006_filter_long <- base_model_2001_2006_agg_filter %>%
   pivot_longer(cols = starts_with("m"), 
                values_to = "m_DHF_cases", 
                names_to = "month")
 
-# take out islands Kien Hai/District + Phu Quoc/City
+# fill-in missing years
+agg1 <- base_model_2001_2006_filter_long %>%
+  bind_rows() %>% 
+  group_by(VARNAME_2, year, month) %>%
+  summarize(m_DHF_cases = n())  %>%
+  ungroup  %>%
+  mutate(month=as.factor(month),
+ year=as.factor(year),
+district
+=as.factor(VARNAME_2)
+) %>%
+  tidyr::complete(year, month, VARNAME_2, fill=list(m_DHF_cases=NA)) #fills NA
+
+base_model_final <- agg1 %>%
+  mutate(m_DHF_cases = as.numeric(m_DHF_cases))
+
+## need to re-bind population
+
+```
+
+
+
+
+```{r}
+for(j in 1: length(unique(base_model_2001_2006_agg_filter$VARNAME_2))){
+  print(sum(base_model_2001_2006_agg_filter$VARNAME_2 == unique(base_model_2001_2006_agg_filter$VARNAME_2)[j]))
+  if( sum(base_model_2001_2006_agg_filter$VARNAME_2 == unique(base_model_2001_2006_agg_filter$VARNAME_2)[j]) != 18) {
+    print(unique(base_model_2001_2006_agg_filter$VARNAME_2)[j])
+  }
+}
+
+
+
+```
+
+
+## Set up Data Frame for Model Training
+```{r}
+library(varhandle)
+
+base_model_2001_2006 <- base_model_final %>% 
+  mutate(year = unfactor(year)) %>%
+  filter(year >= 2001 & year <= 2006)
+
+# make month 12 data missing
 base_model_2001_2006_1 <- base_model_2001_2006 %>%
+  mutate(m_DHF_cases = ifelse(base_model_2001_2006$year == 2006 & base_model_2001_2006$month == "m12", 
+                              yes = NA, 
+                              no = base_model_2001_2006$m_DHF_cases))
+                            
+
+# take out islands Kien Hai/District + Phu Quoc/City
+base_model_2001_2006_2 <- base_model_2001_2006_1 %>%
   filter(VARNAME_2 != "Kien Hai", 
          VARNAME_2 != "Phu Quoc")
 
-# correct structure for model
-base_model_2001_2006_1 <- base_model_2001_2006_1 %>%
-  arrange(month, NAME_1, VARNAME_2)
+base_model_2001_2006_2 <- base_model_2001_2006_2 %>%
+  mutate(m_DHF_cases = as.numeric(m_DHF_cases))
 
+str(base_model_2001_2006_2)
 #seasonality_matrix <- model.matrix(~ as.factor(month), data = base_model_2001_2006)
 
 # x_model for seasonality
@@ -200,52 +281,10 @@ offset_model <- log(base_model_2001_2006_1$pop)
 
 # if still not working, can throw out the weirds ones at first
 ```
-tidyr complete function --> will fill all the variables (Dan has sample code)
 
-## Check Number of rows for each district before running new model
-want there to be the same number for every district (12*years)
-```{r}
 
-## figuring out problems
-for(j in 1: length(unique(base_model_2001_2006_1$VARNAME_2))){
-  print(sum(base_model_2001_2006_1$VARNAME_2 == unique(base_model_2001_2006_1$VARNAME_2)[j]))
-  if( sum(base_model_2001_2006_1$VARNAME_2 == unique(base_model_2001_2006_1$VARNAME_2)[j]) != 72) {
-    print(unique(base_model_2001_2006_1$VARNAME_2)[j])
-  }
-}
 
-for(j in 1: length(unique(base_model_2001_2006_1$geometry))){
-  print(sum(base_model_2001_2006_1$geometry == unique(base_model_2001_2006_1$geometry)[j]))
-  if( sum(base_model_2001_2006_1$geometry == unique(base_model_2001_2006_1$geometry)[j]) != 72) {
-    print(unique(base_model_2001_2006_1$VARNAME_2)[j])
-  }
-}
 
-```
-
-Chau Thanh in Hậu Giang Province begins in 2004 x
-Phu Tan in Cà Mau begins in 2004 x
-Dong Hai begins in 2002 x 
-Hoa Binh begins in 2006 x
-Binh Thuy begins in 2004 x
-Cai Rang begins in 2004 x
-Ninh Kieu begins in 2004 x
-Thoi Lai is missing 2004-2008 x
-Vinh Thanh begins in 2004 x
-Nam Can begins in 2004 x
-Cao Lanh has a district and city --> 36 years
-Chau Thanh A begins in 2004 x
-Long My District begins in 2004 x
-Long My Town beings in 2015 x
-Phung Hiep begins in 2004 x
-Vi Thanh begins in 2004 x
-Vi Thuy begins in 2004 x
-Cu Lao Dung begins in 2003 x
-Nga Nam begins in 2004 x
-
-need to delete when updated district code.y is 61 and ENGTYPE2 is District --> not working
-
-create a unique name for the districts in each province
 
 ## Base Model (based on code from Josh)
 ```{r}
@@ -257,7 +296,7 @@ create a unique name for the districts in each province
 
 # default of burnin = 10000, n.sample = 110000, thin = 10
 
-results<-ST.CARar(m_DHF_cases ~ 1, data = base_model_2001_2006_1,
+results<-ST.CARar(m_DHF_cases ~ 1, data = base_model_2001_2006_2, 
 
                   family = "poisson",
 
