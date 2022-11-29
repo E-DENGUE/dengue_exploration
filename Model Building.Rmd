@@ -29,12 +29,17 @@ library(CARBayesST)
 ```{r}
 # Number of spatial units (e.g., districts in MDR)
 n.district <- 134
+n.district2 <- 132
 
 # Create an n x􏰀 n identity matrix
 Id.mat <- diag(n.district)
+Id.mat2 <- diag(n.district2)
 
 MDR_2 <- st_read(dsn = '/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/MDR Updated map/VMD_districts_2022.shp')
 
+MDR_3 <- MDR_2 %>%
+  filter(VARNAME_2 != "Kien Hai", 
+         VARNAME_2 != "Phu Quoc")
 ```
 
 ## Neighbor Matrix
@@ -51,10 +56,12 @@ MDR_2 <- st_read(dsn = '/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietna
 # have at least one neighbor
 neighb <- poly2nb(MDR_2, queen = T, snap = sqrt(0.001))
 
+
 # Check average number of links -- increase snap distance if it says there is 
 # a zip with zero neighbors
 neighb # Avg Number of links = 5.19403 
   # regions 74 nand 76 have no links --> islands Kien Hai/District + Phu Quoc/City
+
 
 # Make neighbor matrix 
 # if zero.policy FALSE stop with error for any empty neighbour sets, 
@@ -62,10 +69,11 @@ neighb # Avg Number of links = 5.19403
 # B is the basic binary coding, W is row standardised (both are commonly used)
 neighb.mat <- nb2mat(neighb, zero.policy = T, style = 'B')
 
-    # the island will not have neighbors, so need to exclude it at first
-neighb.mat_1 <- neighb.mat[-74, -74]
-neighb.mat_2 <- neighb.mat_1[-75, -75]
 
+# the islands will not have neighbors, so need to exclude it at first (islands Kien Hai/District + Phu Quoc/City)
+neighb2 <- poly2nb(MDR_3, queen = T, snap = sqrt(0.001))
+neighb2
+neighb.mat_2 <- nb2mat(neighb2, zero.policy = T, style = 'B')
 
 
 # For Leroux model, neighbor matrix needs to have 0 if not neighboring, -1 if 
@@ -201,15 +209,13 @@ base_model_2001_2006_filter_long <- base_model_2001_2006_agg_filter %>%
 
 # fill-in missing years
 agg1 <- base_model_2001_2006_filter_long %>%
-  bind_rows() %>% 
-  group_by(VARNAME_2, year, month) %>%
-  summarize(m_DHF_cases = n())  %>%
-  ungroup  %>%
+  #bind_rows() %>% 
+  #group_by(VARNAME_2, year, month) %>%
+  #summarize(m_DHF_cases = n())  %>%
+  #ungroup  %>%
   mutate(month=as.factor(month),
  year=as.factor(year),
-district
-=as.factor(VARNAME_2)
-) %>%
+ district =as.factor(VARNAME_2)) %>%
   tidyr::complete(year, month, VARNAME_2, fill=list(m_DHF_cases=NA)) #fills NA
 
 base_model_final <- agg1 %>%
@@ -265,7 +271,7 @@ str(base_model_2001_2006_2)
 x_model <- base_model_2001_2006 %>%
   dplyr::select(m_DHF_cases, month)
 
-x_model_1 <- base_model_2001_2006_1 %>%
+x_model_1 <- base_model_2001_2006_2 %>%
   dplyr::select(m_DHF_cases, month)
 
 # checking normality of population dist for offset model
@@ -273,7 +279,7 @@ hist(MDR_Dengue_map$pop, breaks = 20)
 hist(base_model_2001_2006_1$pop, breaks = 20) 
 
 # set offset model
-offset_model <- log(base_model_2001_2006_1$pop)
+offset_model <- log(base_model_2001_2006_2$pop)
 
 # arrange by month and then province, then district
 
@@ -315,6 +321,38 @@ results<-ST.CARar(m_DHF_cases ~ 1, data = base_model_2001_2006_2,
                   prior.var.beta = rep((100^2),
 
                                        times = 1),
+
+
+                  prior.tau2 = c(0.01, 0.01),
+                  
+                  AR = 1,
+
+                  MALA = TRUE,
+
+                  verbose = TRUE)
+
+results$summary.results
+
+results<-ST.CARar(m_DHF_cases ~ as.factor(month) + offset(offset_model) + x_model_1, 
+                  data = base_model_2001_2006_2,
+
+                  family = "poisson",
+
+                  W = neighb.mat_2,
+
+                  burnin = 10, 
+
+                  n.sample = 100,
+
+                  thin = 5,
+
+                  prior.mean.beta = rep(0,
+
+                                        times = nrow(base_model_2001_2006_2) - 1),
+
+                  prior.var.beta = rep((100^2),
+
+                                       times = nrow(base_model_2001_2006_2) - 1),
 
 
                   prior.tau2 = c(0.01, 0.01),
