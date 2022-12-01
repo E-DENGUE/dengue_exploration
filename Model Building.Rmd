@@ -22,6 +22,17 @@ library(dplyr)
 library(tidyverse)
 library(CARBayesST)
 
+# parallel processing
+## figure out which packages are needed
+# state data frame being input
+# call jags would be mod_func
+# n_advance --> look up do function
+# look up what collect does
+# likely stored in a list of fitted model outputs
+# try talkin gto help desk about cluster
+
+# try running it once 
+
 ```
 
 
@@ -103,12 +114,12 @@ for (i in 1:nrow(w.mat)) { # Put the number of neighbors on diagonal
 # could also separately analyze them once we have a model and see if it predcits well in them independently
 
 ```
+
 ## Create an Aggregated DF With Distinct District Names 
 ```{r}
 
 # create data frame
-base_model_2001_2006_agg <- fortify(MDR_Dengue_map) %>%
-  dplyr::select(NAME_1, VARNAME_2, ENGTYPE_2, district, total_DHF_cases, year, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, updated_district_code.y, pop, DHF_incidence, log_DHF_incidence, geometry) 
+base_model_2001_2006_agg <- fortify(MDR_Dengue_map) 
 
 base_model_2001_2006_agg_2 <- base_model_2001_2006_agg %>%
   filter(NAME_1 == "An Giang" & VARNAME_2 == "Chau Thanh") %>%
@@ -219,15 +230,13 @@ agg1 <- base_model_2001_2006_filter_long %>%
   tidyr::complete(year, month, VARNAME_2, fill=list(m_DHF_cases=NA)) #fills NA
 
 base_model_final <- agg1 %>%
-  mutate(m_DHF_cases = as.numeric(m_DHF_cases))
+  mutate(month = as.numeric(month),
+    m_DHF_cases = as.numeric(m_DHF_cases))
 
-## need to re-bind population
 
 ```
 
-
-
-
+## Test to make sure data is ready for model (should all be the same number)
 ```{r}
 for(j in 1: length(unique(base_model_2001_2006_agg_filter$VARNAME_2))){
   print(sum(base_model_2001_2006_agg_filter$VARNAME_2 == unique(base_model_2001_2006_agg_filter$VARNAME_2)[j]))
@@ -240,56 +249,34 @@ for(j in 1: length(unique(base_model_2001_2006_agg_filter$VARNAME_2))){
 
 ```
 
-
-## Set up Data Frame for Model Training
+## Function for generating dataset
 ```{r}
-library(varhandle)
 
-base_model_2001_2006 <- base_model_final %>% 
-  mutate(year = unfactor(year)) %>%
-  filter(year >= 2001 & year <= 2006)
+#initially, fit htough nov 2006, set dec 2006 to NA
+#'2006-12-01'
 
-# make month 12 data missing
-base_model_2001_2006_1 <- base_model_2001_2006 %>%
-  mutate(m_DHF_cases = ifelse(base_model_2001_2006$year == 2006 & base_model_2001_2006$month == "m12", 
-                              yes = NA, 
-                              no = base_model_2001_2006$m_DHF_cases))
-                            
 
-# take out islands Kien Hai/District + Phu Quoc/City
-base_model_2001_2006_2 <- base_model_2001_2006_1 %>%
-  filter(VARNAME_2 != "Kien Hai", 
-         VARNAME_2 != "Phu Quoc")
+advance_missing_func <- function(N_advance){
+      
+      base_model_for_model_1 <- base_model_final %>% 
+        mutate(year = unfactor(year),
+               #monthN = as.numeric(gsub('m','', month)),
+               date = as.Date(paste(year, month, '01', sep='-')),
+               pop=if_else(is.na(pop), 0.5 ,pop)) %>%
+        filter( date <= (as.Date('2006-12-01' ) %m+% months(N_advance) )) %>%
+        arrange(district, date) %>%
+        group_by(district) %>%
+        mutate( m_DHF_cases=if_else(is.na(m_DHF_cases),0, m_DHF_cases), ##ALERT...assuming nov, dec missing=0
+          index= row_number() , 
+               m_DHF_cases_fit = if_else(index==max(index,na.rm=T), NA_real_,m_DHF_cases) ) %>%
+        filter(VARNAME_2 != "Kien Hai", 
+         VARNAME_2 != "Phu Quoc") %>%
+        dplyr::select(month, year, district, m_DHF_cases,m_DHF_cases_fit, pop)
+}
 
-base_model_2001_2006_2 <- base_model_2001_2006_2 %>%
-  mutate(m_DHF_cases = as.numeric(m_DHF_cases))
-
-str(base_model_2001_2006_2)
-#seasonality_matrix <- model.matrix(~ as.factor(month), data = base_model_2001_2006)
-
-# x_model for seasonality
-x_model <- base_model_2001_2006 %>%
-  dplyr::select(m_DHF_cases, month)
-
-x_model_1 <- base_model_2001_2006_2 %>%
-  dplyr::select(m_DHF_cases, month)
-
-# checking normality of population dist for offset model
-hist(MDR_Dengue_map$pop, breaks = 20) 
-hist(base_model_2001_2006_1$pop, breaks = 20) 
-
-# set offset model
-offset_model <- log(base_model_2001_2006_2$pop)
-
-# arrange by month and then province, then district
-
-# need 72 unique obs for each district --> can put in as missing for ones with less 
-
-# if still not working, can throw out the weirds ones at first
+ds <- advance_missing_func(0)
+#ds.advance <- lapply(0:10, advance_missing_func)
 ```
-
-
-
 
 
 ## Base Model (based on code from Josh)
@@ -302,7 +289,16 @@ offset_model <- log(base_model_2001_2006_2$pop)
 
 # default of burnin = 10000, n.sample = 110000, thin = 10
 
-results<-ST.CARar(m_DHF_cases ~ 1, data = base_model_2001_2006_2, 
+mod.func <- function(N_advance) {
+  ds <- advance_missing_func(N_advance) 
+ 
+  x_model = model.matrix(~ as.factor(as.numeric(month)), data = ds)
+
+  offset_model = log(ds$pop)
+
+
+  results<-ST.CARar(m_DHF_cases_fit ~ -1 + x_model + offset(offset_model) , 
+                  data = ds,
 
                   family = "poisson",
 
@@ -316,12 +312,11 @@ results<-ST.CARar(m_DHF_cases ~ 1, data = base_model_2001_2006_2,
 
                   prior.mean.beta = rep(0,
 
-                                        times = 1),
-
+                                        times = ncol(x_model)),
+                                        
                   prior.var.beta = rep((100^2),
 
-                                       times = 1),
-
+                                       times = ncol(x_model)),
 
                   prior.tau2 = c(0.01, 0.01),
                   
@@ -330,38 +325,10 @@ results<-ST.CARar(m_DHF_cases ~ 1, data = base_model_2001_2006_2,
                   MALA = TRUE,
 
                   verbose = TRUE)
+}
 
-results$summary.results
+mod1 <- mod.func(1)
 
-results<-ST.CARar(m_DHF_cases ~ as.factor(month) + offset(offset_model) + x_model_1, 
-                  data = base_model_2001_2006_2,
-
-                  family = "poisson",
-
-                  W = neighb.mat_2,
-
-                  burnin = 10, 
-
-                  n.sample = 100,
-
-                  thin = 5,
-
-                  prior.mean.beta = rep(0,
-
-                                        times = nrow(base_model_2001_2006_2) - 1),
-
-                  prior.var.beta = rep((100^2),
-
-                                       times = nrow(base_model_2001_2006_2) - 1),
-
-
-                  prior.tau2 = c(0.01, 0.01),
-                  
-                  AR = 1,
-
-                  MALA = TRUE,
-
-                  verbose = TRUE)
 
 results$summary.results
 
@@ -369,72 +336,5 @@ results$summary.results
 
 
 ```
+Should we be using our past model as the next model's prior?
 
-
-## Tried Running
-
-```{r}
-###############################################################
-
-#Model Fitting
-
-###############################################################
-library(CARBayesST)
-length(base_model_2001_2006$m_DHF_cases)
-length(base_model_2001_2006$month)
-length(x_model$m_DHF_cases)
-length(neighb.mat)
-
-results<-ST.CARar(m_DHF_cases ~ as.factor(month), 
-                  data = base_model_2001_2006_1,
-
-                  family = "poisson",
-
-                  W = neighb.mat_2,
-
-                  burnin = 10, 
-
-                  n.sample = 100,
-
-                  thin = 5,
-
-                  prior.mean.beta = rep(0,
-
-                                        times = ncol(base_model_2001_2006_1) - 1),
-
-                  prior.var.beta = rep((100^2),
-
-                                       times = ncol(base_model_2001_2006_1) - 1),
-
-
-                  prior.tau2 = c(0.01, 0.01),
-                  
-                  AR = 1,
-
-                  MALA = TRUE,
-
-                  verbose = TRUE)
-
-results$summary.results
-
-# want to look at the trace plots for seasonality, overall fitted value (probably won't converge with lower numbers of runs)
-
-```
-Warning in rnorm(n = length(beta.mean), mean = beta.mean, sd = beta.sd) :
-  NAs produced
-Warning in rnorm(n = N.all, mean = 0, sd = res.sd) : NAs produced
-Warning in matrix(offset, nrow = K, ncol = N, byrow = FALSE) :
-  data length [54744] is not a sub-multiple or multiple of the number of rows [132]
-Warning in matrix(X.standardised %*% beta, nrow = K, ncol = N, byrow = FALSE) :
-  data length [54744] is not a sub-multiple or multiple of the number of rows [132]
-Warning in matrix(phi, nrow = K, ncol = N, byrow = FALSE) :
-  data length [54744] is not a sub-multiple or multiple of the number of rows [132]
-Generating 18 post burnin and thinned (if requested) samples.
-  |                                                                                 |   0%Warning in rpois(n = n.miss, lambda = fitted[which.miss == 0]) :
-  NAs produced
-Warning in matrix(Y.DA, nrow = K, ncol = N, byrow = FALSE) :
-  data length [54744] is not a sub-multiple or multiple of the number of rows [132]
-Warning in matrix(X.standardised %*% beta, nrow = K, ncol = N, byrow = FALSE) :
-  data length [54744] is not a sub-multiple or multiple of the number of rows [132]
-Warning in rgamma(1, tau2.shape, scale = (1/tau2.scale)) : NAs produced
-Error in if (prob > runif(1)) { : missing value where TRUE/FALSE needed
