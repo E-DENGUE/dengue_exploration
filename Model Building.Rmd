@@ -275,15 +275,35 @@ advance_missing_func <- function(N_advance){
                m_DHF_cases_fit = if_else(index==max(index,na.rm=T), NA_real_,m_DHF_cases) ) %>%
         filter(VARNAME_2 != "Kien Hai", 
          VARNAME_2 != "Phu Quoc") %>%
-        dplyr::select(month, year, district, m_DHF_cases,m_DHF_cases_fit, pop)
+        dplyr::select(month, year, district, m_DHF_cases,m_DHF_cases_fit, pop) %>%
+        arrange(month, year, district)
 }
 
 ds <- advance_missing_func(0)
 #ds.advance <- lapply(0:10, advance_missing_func)
+
+ds_for_mod_plots_func <- function(N_advance){
+      
+      base_model_for_model_1 <- base_model_final %>% 
+        mutate(year = unfactor(year),
+               date = as.Date(paste(year, month, '01', sep='-')),
+               pop=if_else(is.na(pop), 0.5 ,pop)) %>%
+        filter( date <= (as.Date('2006-12-01' ) %m+% months(N_advance) )) %>%
+        arrange(district, date) %>%
+        group_by(district) %>%
+        filter(VARNAME_2 != "Kien Hai", 
+         VARNAME_2 != "Phu Quoc") %>%
+        dplyr::select(month, year, district, m_DHF_cases, pop) %>%
+        arrange(month, year, district)
+}
+
+ds_mod1 <- ds_for_mod_plots_func(0)
+
 ```
 
 
-## Base Model (based on code from Josh)
+## Base Model
+For this model, n_advance = model # - 1 because need to start at 0 for month 12, 2006
 ```{r}
 ###############################################################
 
@@ -308,7 +328,7 @@ mod.func <- function(N_advance) {
 
                   W = neighb.mat_2,
 
-                  burnin = 5000, 
+                  burnin = 10000, 
 
                   n.sample = 110000,
 
@@ -322,7 +342,7 @@ mod.func <- function(N_advance) {
 
                                        times = ncol(x_model)),
 
-                  prior.tau2 = c(0.10, 0.10),
+                  prior.tau2 = c(0.01, 0.01),
                   
                   AR = 1,
 
@@ -331,16 +351,28 @@ mod.func <- function(N_advance) {
                   verbose = TRUE)
 }
 
-mod1_2 <- mod.func(0)
+mod3 <- mod.func(2)
 
+print(mod1_3)
+mod1_3$summary.results
 
 mod1$summary.results
 
 print(mod1)
-mod1_2$
+mod1_2$fitted.values # PROBLEM = Inf
 
 # want to look at the trace plots for seasonality, overall fitted value (probably won't converge with lower numbers of runs)
+```
 
+## Model Results
+$\beta$ = month coefficients
+$\phi$ = the vector of random effects for time period t, which evolve over time via a multivariate first or second order autoregressive process with temporal autoregressive parameter $\rho$
+
+```{r}
+mod1$samples
+
+######## mod1 ################
+# prior tau of 0.01 and 1000 burnin --> only went 87%
 ######### plot of betas
 beta_samples <-mod1$samples$beta
 plot(beta_samples[1,], type='l', col='red',main="beta") # First chain
@@ -376,61 +408,106 @@ ggplot(betas)+
   geom_density(aes(betas[,10]), fill = 'darkorange3', color = 'darkorange3')+
   geom_density(aes(betas[,11]), fill = 'goldenrod2', color = 'goldenrod2')+
   geom_density(aes(betas[,12]), fill = 'darkorchid1', color = 'darkorchid1')+
-  geom_vline(xintercept = 1, color = "red", size = 1.5)+
+  geom_vline(xintercept = 0, color = "red", size = 1.5, linetype = 3)+
    labs(title = "Posterior distribution of the month coefficients", x = "Beta", y = "Density")
 
-## check residuals
-ds_for_plots <- ds %>%
-  ungroup() %>%
-  mutate(resid = mod1$residuals$response,
-         fitted = mod1$fitted.values) %>%
-  group_by(district)
+## plot fitted vs. real values of DHF cases
+ds_mod1$mod1_fitted <- mod1$fitted.values
+ds_mod1$mod1_resid <- mod1$residuals$response
 
 par(mfrow = c(1,2))
-ggplot(data = ds_for_plots)+
-  geom_line(aes(month, m_DHF_cases_fit, color = district))+
+ggplot(data = ds_mod1)+
+  geom_line(aes(month, m_DHF_cases, color = district))+
   theme(legend.position = "none")
-ggplot(data = ds_for_plots)+
-  geom_line(aes(month, fitted, color = district))+
+ggplot(data = ds_mod1)+
+  geom_line(aes(month, mod1_fitted, color = district))+
   theme(legend.position = "none")
 
-ds_for_plots %>%
-  filter(month == 12) %>%
+## fitted vs. real cases for just missing month
+ds_mod1 %>%
+  filter(year == 2006 & month == 12) %>%
   ungroup() %>%
   ggplot()+
-  geom_point(aes(district, m_DHF_cases_fit), color = "blue")+
-  geom_point(aes(district, fitted), color = "red")
+  geom_point(aes(district, m_DHF_cases), color = "blue")+
+  geom_point(aes(district, mod1_fitted), color = "red")
+
+## residuals 
+ds_mod1 %>%
+  ungroup() %>%
+  ggplot()+
+  geom_point(aes(district, mod1_resid, color = month))
+
+ds_mod1 %>%
+  ggplot()+
+  geom_point(aes(year, mod1_resid, color = district, shape = as_factor(month)))+
+  theme(legend.position = "none")
+
+ds_mod1 %>%
+  ggplot()+
+  geom_point(aes(month, mod1_resid, color = district, shape = as_factor(year)))+
+  theme(legend.position = "none")
+
+ds_mod1 %>%
+  ggplot()+
+  geom_point(aes(month, mod1_resid, color = year))  
+
+## tau
+  
+mod1$samples$phi
+
+########## mod1_2 ###################
+# prior tau of 0.10 and 5000 burnin --> went 100%
+
+beta_samples_mod1_2 <-mod1_2$samples$beta
+plot(beta_samples_mod1_2[1,], type='l', col='red',main="beta") # First chain
+lines(beta_samples_mod1_2[2,],col='blue')
+lines(beta_samples_mod1_2[3,], col = "green")
+lines(beta_samples_mod1_2[4,], col = "orange")
+lines(beta_samples_mod1_2[5,], col = "yellow")
+lines(beta_samples_mod1_2[6,], col = "purple")
+lines(beta_samples_mod1_2[7,], col = "firebrick1")
+lines(beta_samples_mod1_2[8,], col = "dodgerblue1")
+lines(beta_samples_mod1_2[9,], col = "darkolivegreen1")
+lines(beta_samples_mod1_2[10,], col = "darkorange3")
+lines(beta_samples_mod1_2[11,], col = "goldenrod2")
+lines(beta_samples_mod1_2[12,], col = "darkorchid1")
+
+betas_mod1_2 <- data.frame(m1 = mod1_2$samples$beta[,1], m2 = mod1_2$samples$beta[,2], 
+                           m3 = mod1_2$samples$beta[,3], m4 = mod1_2$samples$beta[,4], 
+                           m5 = mod1_2$samples$beta[,5], m6 = mod1_2$samples$beta[,6], 
+                           m7 = mod1_2$samples$beta[,7], m8 = mod1_2$samples$beta[,8], 
+                           m9 = mod1_2$samples$beta[,9], m10 = mod1_2$samples$beta[,10], 
+                           m11 = mod1_2$samples$beta[,11], m12 = mod1_2$samples$beta[,12])
+library(ggplot2)
+library(viridis)
+library(dplyr)
+ggplot(betas_mod1_2)+
+  geom_density(aes(betas_mod1_2[,1]), fill = 'red', color = 'red')+
+  geom_density(aes(betas_mod1_2[,2]), fill = 'blue', color = 'blue')+
+  geom_density(aes(betas_mod1_2[,3]), fill = 'green', color = 'green')+
+  geom_density(aes(betas_mod1_2[,4]), fill = 'orange', color = 'orange')+
+  geom_density(aes(betas_mod1_2[,5]), fill = 'yellow', color = 'yellow')+
+  geom_density(aes(betas_mod1_2[,6]), fill = 'purple', color = 'purple')+
+  geom_density(aes(betas_mod1_2[,7]), fill = 'firebrick1', color = 'firebrick1')+
+  geom_density(aes(betas_mod1_2[,8]), fill = 'dodgerblue1', color = 'dodgerblue1')+
+  geom_density(aes(betas_mod1_2[,9]), fill = 'darkolivegreen1', color = 'darkolivegreen1')+
+  geom_density(aes(betas_mod1_2[,10]), fill = 'darkorange3', color = 'darkorange3')+
+  geom_density(aes(betas_mod1_2[,11]), fill = 'goldenrod2', color = 'goldenrod2')+
+  geom_density(aes(betas_mod1_2[,12]), fill = 'darkorchid1', color = 'darkorchid1')+
+  geom_vline(xintercept = 0, color = "red", size = 1, linetype = 3)+
+   labs(title = "Posterior distribution of the month coefficients", x = "Beta", y = "Density")
+
+## plot fitted vs. real values of DHF cases
+ds_mod1$mod1_2_fitted <- mod1_2$fitted.values
+ds_mod1$mod1_2_resid <- mod1_2$residuals$response
 
 
-ds_for_plots %>%
-  ggplot(aes(fill = resid))+
-  geom_sf()+
-  scale_fill_viridis(option = "viridis", direction = -1, name = "Residuals")
+
+model.matrix(mod1)
 
 ```
 Should we be using our past model as the next model's prior?
 
-Setting up the model.
-Generating 10900 post burnin and thinned (if requested) samples.
-  |================================================================================                 |  82%Warning: NAs producedWarning: NAs producedWarning: NAs producedWarning: NAs produced
-  Error in if (prob > runif(1)) { : missing value where TRUE/FALSE needed
+
   
-```{r}
-base_model_final %>%
-  filter(year < 2007) %>%
-  ggplot()+
-  geom_line(aes(month, m_DHF_cases), col = "red")+
-  geom_line(aes(month, fitted.values), data = mod1)
 
-new_model <- base_model_final %>%
-  dplyr::filter(year == 2001 | year == 2002 | year == 2003 | year == 2004 | year == 2005 | year == 2006) 
-
-
-x_val <- c(1:length(mod1$fitted.values))
-x_val_2 <- c(1:length(new_model$m_DHF_cases))
-
-par(mfrow = c(1, 2))
-plot(x_val, mod1$fitted.values, type = "l")
-plot(x_val_2, new_model$m_DHF_cases, type = "l")
-
-```
