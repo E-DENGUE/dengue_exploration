@@ -21,6 +21,8 @@ library(sf)
 library(dplyr)
 library(tidyverse)
 library(CARBayesST)
+library(TSDT)
+library(lubridate)
 
 # parallel processing
 ## figure out which packages are needed
@@ -117,6 +119,8 @@ for (i in 1:nrow(w.mat)) { # Put the number of neighbors on diagonal
 
 ## Create an Aggregated DF With Distinct District Names 
 ```{r}
+
+#write.csv(MDR_Dengue_map, "/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data\\MDR_Dengue_map.csv")
 
 # create data frame
 base_model_2001_2006_agg <- fortify(MDR_Dengue_map) 
@@ -304,11 +308,11 @@ mod.func <- function(N_advance) {
 
                   W = neighb.mat_2,
 
-                  burnin = 10, 
+                  burnin = 5000, 
 
-                  n.sample = 100,
+                  n.sample = 110000,
 
-                  thin = 5,
+                  thin = 10,
 
                   prior.mean.beta = rep(0,
 
@@ -318,7 +322,7 @@ mod.func <- function(N_advance) {
 
                                        times = ncol(x_model)),
 
-                  prior.tau2 = c(0.01, 0.01),
+                  prior.tau2 = c(0.10, 0.10),
                   
                   AR = 1,
 
@@ -327,14 +331,106 @@ mod.func <- function(N_advance) {
                   verbose = TRUE)
 }
 
-mod1 <- mod.func(1)
+mod1_2 <- mod.func(0)
 
 
-results$summary.results
+mod1$summary.results
+
+print(mod1)
+mod1_2$
 
 # want to look at the trace plots for seasonality, overall fitted value (probably won't converge with lower numbers of runs)
 
+######### plot of betas
+beta_samples <-mod1$samples$beta
+plot(beta_samples[1,], type='l', col='red',main="beta") # First chain
+lines(beta_samples[2,],col='blue')
+lines(beta_samples[3,], col = "green")
+lines(beta_samples[4,], col = "orange")
+lines(beta_samples[5,], col = "yellow")
+lines(beta_samples[6,], col = "purple")
+lines(beta_samples[7,], col = "firebrick1")
+lines(beta_samples[8,], col = "dodgerblue1")
+lines(beta_samples[9,], col = "darkolivegreen1")
+lines(beta_samples[10,], col = "darkorange3")
+lines(beta_samples[11,], col = "goldenrod2")
+lines(beta_samples[12,], col = "darkorchid1")
+
+betas <- data.frame(m1 = mod1$samples$beta[,1], m2 = mod1$samples$beta[,2], m3 = mod1$samples$beta[,3], 
+                    m4 = mod1$samples$beta[,4], m5 = mod1$samples$beta[,5], m6 = mod1$samples$beta[,6], 
+                    m7 = mod1$samples$beta[,7], m8 = mod1$samples$beta[,8], m9 = mod1$samples$beta[,9], 
+                    m10 = mod1$samples$beta[,10], m11 = mod1$samples$beta[,11], m12 = mod1$samples$beta[,12])
+library(ggplot2)
+library(viridis)
+library(dplyr)
+ggplot(betas)+
+  geom_density(aes(betas[,1]), fill = 'red', color = 'red')+
+  geom_density(aes(betas[,2]), fill = 'blue', color = 'blue')+
+  geom_density(aes(betas[,3]), fill = 'green', color = 'green')+
+  geom_density(aes(betas[,4]), fill = 'orange', color = 'orange')+
+  geom_density(aes(betas[,5]), fill = 'yellow', color = 'yellow')+
+  geom_density(aes(betas[,6]), fill = 'purple', color = 'purple')+
+  geom_density(aes(betas[,7]), fill = 'firebrick1', color = 'firebrick1')+
+  geom_density(aes(betas[,8]), fill = 'dodgerblue1', color = 'dodgerblue1')+
+  geom_density(aes(betas[,9]), fill = 'darkolivegreen1', color = 'darkolivegreen1')+
+  geom_density(aes(betas[,10]), fill = 'darkorange3', color = 'darkorange3')+
+  geom_density(aes(betas[,11]), fill = 'goldenrod2', color = 'goldenrod2')+
+  geom_density(aes(betas[,12]), fill = 'darkorchid1', color = 'darkorchid1')+
+  geom_vline(xintercept = 1, color = "red", size = 1.5)+
+   labs(title = "Posterior distribution of the month coefficients", x = "Beta", y = "Density")
+
+## check residuals
+ds_for_plots <- ds %>%
+  ungroup() %>%
+  mutate(resid = mod1$residuals$response,
+         fitted = mod1$fitted.values) %>%
+  group_by(district)
+
+par(mfrow = c(1,2))
+ggplot(data = ds_for_plots)+
+  geom_line(aes(month, m_DHF_cases_fit, color = district))+
+  theme(legend.position = "none")
+ggplot(data = ds_for_plots)+
+  geom_line(aes(month, fitted, color = district))+
+  theme(legend.position = "none")
+
+ds_for_plots %>%
+  filter(month == 12) %>%
+  ungroup() %>%
+  ggplot()+
+  geom_point(aes(district, m_DHF_cases_fit), color = "blue")+
+  geom_point(aes(district, fitted), color = "red")
+
+
+ds_for_plots %>%
+  ggplot(aes(fill = resid))+
+  geom_sf()+
+  scale_fill_viridis(option = "viridis", direction = -1, name = "Residuals")
 
 ```
 Should we be using our past model as the next model's prior?
 
+Setting up the model.
+Generating 10900 post burnin and thinned (if requested) samples.
+  |================================================================================                 |  82%Warning: NAs producedWarning: NAs producedWarning: NAs producedWarning: NAs produced
+  Error in if (prob > runif(1)) { : missing value where TRUE/FALSE needed
+  
+```{r}
+base_model_final %>%
+  filter(year < 2007) %>%
+  ggplot()+
+  geom_line(aes(month, m_DHF_cases), col = "red")+
+  geom_line(aes(month, fitted.values), data = mod1)
+
+new_model <- base_model_final %>%
+  dplyr::filter(year == 2001 | year == 2002 | year == 2003 | year == 2004 | year == 2005 | year == 2006) 
+
+
+x_val <- c(1:length(mod1$fitted.values))
+x_val_2 <- c(1:length(new_model$m_DHF_cases))
+
+par(mfrow = c(1, 2))
+plot(x_val, mod1$fitted.values, type = "l")
+plot(x_val_2, new_model$m_DHF_cases, type = "l")
+
+```
