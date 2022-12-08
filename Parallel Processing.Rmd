@@ -1,0 +1,36 @@
+---
+title: "Parallel Processing"
+author: "Elisabeth Nelson"
+date: "2022-12-06"
+output: pdf_document
+---
+```{r}
+
+library(parallel) 
+library(future)
+
+n_cores <- max(availableCores(methods=c("system")) - 1, 1)
+
+cl1 <- parallel::makeCluster(n_cores)
+
+
+clusterEvalQ(cl=cl1) {
+  library(lubridate, quietly = TRUE)
+  library(dplyr, quietly = TRUE)
+  library(CARBayes)
+  library(CARBayesST)
+ 
+  }
+
+clusterExport(cl1, c('mod.func','advance_missing_func', 'base_model_final'), environment())
+
+ mod1 <- parLapply(
+        cl = cl1,
+        1:120,
+        fun = mod.func
+      )
+
+ stopCluster(cl1)
+
+
+```
