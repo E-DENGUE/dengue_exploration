@@ -1,0 +1,134 @@
+---
+title: "Base Model Data"
+author: "Elisabeth Nelson"
+date: "2022-12-06"
+output: pdf_document
+---
+## Load Packages
+```{r}
+
+library(stats)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(TSDT)
+library(lubridate)
+
+```
+
+## Create an Aggregated DF With Distinct District Names 
+```{r}
+# read in MDR_Dengue_mpa
+MDR_Dengue_map_restored <- readRDS("MDR_Dengue_map.RDS")
+
+# create data frame
+base_model_2001_2006_agg <- fortify(MDR_Dengue_map_restored) 
+
+base_model_2001_2006_agg_2 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "An Giang" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh An Giang"))
+
+base_model_2001_2006_agg_3 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Bến Tre" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Ben Tre"))
+
+base_model_2001_2006_agg_4 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Đồng Tháp" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Dong Thanp"))
+
+base_model_2001_2006_agg_5 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Hậu Giang" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Hau Giang"))
+
+base_model_2001_2006_agg_6 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Kiên Giang" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Kien Giang"))
+
+base_model_2001_2006_agg_7 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Long An" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Long An"))
+ 
+base_model_2001_2006_agg_8 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Sóc Trăng" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Soc Trang")) 
+         
+base_model_2001_2006_agg_9 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Tiền Giang" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Tien Giang"))
+
+base_model_2001_2006_agg_10 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Trà Vinh" & VARNAME_2 == "Chau Thanh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Chau Thanh", "Chau Thanh Tra Vinh"))
+
+base_model_2001_2006_agg_11 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "An Giang" & VARNAME_2 == "Phu Tan") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Phu Tan", "Phu Tan An Giang")) 
+      
+base_model_2001_2006_agg_12 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Cà Mau" & VARNAME_2 == "Phu Tan") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Phu Tan", "Phu Tan Ca Mau"))
+
+base_model_2001_2006_agg_13 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Đồng Tháp" & VARNAME_2 == "Cao Lanh" & district == "cao lãnh") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Cao Lanh", "Cao Lanh District"))
+
+base_model_2001_2006_agg_14 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Đồng Tháp" & VARNAME_2 == "Cao Lanh" & ENGTYPE_2 == "City") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Cao Lanh", "Cao Lanh City"))
+
+base_model_2001_2006_agg_15 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Đồng Tháp" & VARNAME_2 == "Hong Ngu" & district == "hồng ngự") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Hong Ngu", "Hong Ngu District"))
+
+base_model_2001_2006_agg_16 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Đồng Tháp" & VARNAME_2 == "Hong Ngu" & ENGTYPE_2 == "City") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Hong Ngu", "Hong Ngu City"))
+
+base_model_2001_2006_agg_17 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Hậu Giang" & VARNAME_2 == "Long My" & district == "long mỹ") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Long My", "Long My District"))
+
+base_model_2001_2006_agg_18 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Hậu Giang" & VARNAME_2 == "Long My" & ENGTYPE_2 == "Town") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Long My", "Long My Town"))
+
+base_model_2001_2006_agg_19 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Tiền Giang" & VARNAME_2 == "Cai Lay" & district == "cai lậy") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Cai Lay", "Cai Lay District"))
+
+base_model_2001_2006_agg_20 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Tiền Giang" & VARNAME_2 == "Cai Lay" & ENGTYPE_2 == "Town") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Cai Lay", "Cai Lay Town"))
+
+base_model_2001_2006_agg_21 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Trà Vinh" & VARNAME_2 == "Duyen Hai" & district == "duyên hải") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Duyen Hai", "Duyen Hai District"))
+
+base_model_2001_2006_agg_22 <- base_model_2001_2006_agg %>%
+  filter(NAME_1 == "Trà Vinh" & VARNAME_2 == "Duyen Hai" & ENGTYPE_2 == "Town") %>%
+  mutate(VARNAME_2 = str_replace(VARNAME_2, "Duyen Hai", "Duyen Hai Town"))
+
+base_model_2001_2006_agg_filter <- rbind(base_model_2001_2006_agg, base_model_2001_2006_agg_2, base_model_2001_2006_agg_3, base_model_2001_2006_agg_4, base_model_2001_2006_agg_5, base_model_2001_2006_agg_6, base_model_2001_2006_agg_7, base_model_2001_2006_agg_8, base_model_2001_2006_agg_9, base_model_2001_2006_agg_10, base_model_2001_2006_agg_11, base_model_2001_2006_agg_12, base_model_2001_2006_agg_13, base_model_2001_2006_agg_14, base_model_2001_2006_agg_15, base_model_2001_2006_agg_16, base_model_2001_2006_agg_17, base_model_2001_2006_agg_18, base_model_2001_2006_agg_19, base_model_2001_2006_agg_20, base_model_2001_2006_agg_21, base_model_2001_2006_agg_22)
+
+names_to_delete <- c("Chau Thanh", "Phu Tan", "Cao Lanh", "Hong Ngu", "Long My", "Cai Lay", "Duyen Hai")
+
+base_model_2001_2006_agg_filter <- base_model_2001_2006_agg_filter %>%
+  filter(!(VARNAME_2 %in% names_to_delete))
+
+# rotate month variables into one column
+base_model_final <- base_model_2001_2006_agg_filter %>%
+  pivot_longer(cols = starts_with("m"), 
+               values_to = "m_DHF_cases", 
+               names_to = "month") %>%
+  mutate(month = as.numeric(gsub('m','', month)),
+         m_DHF_cases = as.numeric(m_DHF_cases))
+
+```
+
+## Save as a .RDS
+```{r}
+
+saveRDS(base_model_final, "base_model_final.RDS")
+
+```
+
