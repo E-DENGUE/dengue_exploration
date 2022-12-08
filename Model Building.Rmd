@@ -298,7 +298,9 @@ ds_for_mod_plots_func <- function(N_advance){
 }
 
 ds_mod1 <- ds_for_mod_plots_func(0)
-
+ds_mod2 <- ds_for_mod_plots_func(1)
+ds_mod3 <- ds_for_mod_plots_func(2)
+ds_mod4 <- ds_for_mod_plots_func(3)
 ```
 
 
@@ -351,7 +353,7 @@ mod.func <- function(N_advance) {
                   verbose = TRUE)
 }
 
-mod3 <- mod.func(2)
+mod4 <- mod.func(3)
 
 print(mod1_3)
 mod1_3$summary.results
@@ -359,17 +361,22 @@ mod1_3$summary.results
 mod1$summary.results
 
 print(mod1)
-mod1_2$fitted.values # PROBLEM = Inf
+mod2
+mod3
+mod4
 
 # want to look at the trace plots for seasonality, overall fitted value (probably won't converge with lower numbers of runs)
 ```
 
-## Model Results
+
+Should we be using our past model as the next model's prior?
+
+## Model 1 Results
 $\beta$ = month coefficients
 $\phi$ = the vector of random effects for time period t, which evolve over time via a multivariate first or second order autoregressive process with temporal autoregressive parameter $\rho$
 
 ```{r}
-mod1$samples
+#mod1$samples
 
 ######## mod1 ################
 # prior tau of 0.01 and 1000 burnin --> only went 87%
@@ -455,59 +462,370 @@ ds_mod1 %>%
   
 mod1$samples$phi
 
-########## mod1_2 ###################
-# prior tau of 0.10 and 5000 burnin --> went 100%
+########## mod1_3 ###################
+# prior tau of 0.01 and 10000 burnin, rearranged --> went 100%
 
-beta_samples_mod1_2 <-mod1_2$samples$beta
-plot(beta_samples_mod1_2[1,], type='l', col='red',main="beta") # First chain
-lines(beta_samples_mod1_2[2,],col='blue')
-lines(beta_samples_mod1_2[3,], col = "green")
-lines(beta_samples_mod1_2[4,], col = "orange")
-lines(beta_samples_mod1_2[5,], col = "yellow")
-lines(beta_samples_mod1_2[6,], col = "purple")
-lines(beta_samples_mod1_2[7,], col = "firebrick1")
-lines(beta_samples_mod1_2[8,], col = "dodgerblue1")
-lines(beta_samples_mod1_2[9,], col = "darkolivegreen1")
-lines(beta_samples_mod1_2[10,], col = "darkorange3")
-lines(beta_samples_mod1_2[11,], col = "goldenrod2")
-lines(beta_samples_mod1_2[12,], col = "darkorchid1")
+beta_samples_mod1_3 <-mod1_3$samples$beta
+plot(beta_samples_mod1_3[1,], type='l', col='red',main="beta") # First chain
+lines(beta_samples_mod1_3[2,],col='blue')
+lines(beta_samples_mod1_3[3,], col = "green")
+lines(beta_samples_mod1_3[4,], col = "orange")
+lines(beta_samples_mod1_3[5,], col = "yellow")
+lines(beta_samples_mod1_3[6,], col = "purple")
+lines(beta_samples_mod1_3[7,], col = "firebrick1")
+lines(beta_samples_mod1_3[8,], col = "dodgerblue1")
+lines(beta_samples_mod1_3[9,], col = "darkolivegreen1")
+lines(beta_samples_mod1_3[10,], col = "darkorange3")
+lines(beta_samples_mod1_3[11,], col = "goldenrod2")
+lines(beta_samples_mod1_3[12,], col = "darkorchid1")
 
-betas_mod1_2 <- data.frame(m1 = mod1_2$samples$beta[,1], m2 = mod1_2$samples$beta[,2], 
-                           m3 = mod1_2$samples$beta[,3], m4 = mod1_2$samples$beta[,4], 
-                           m5 = mod1_2$samples$beta[,5], m6 = mod1_2$samples$beta[,6], 
-                           m7 = mod1_2$samples$beta[,7], m8 = mod1_2$samples$beta[,8], 
-                           m9 = mod1_2$samples$beta[,9], m10 = mod1_2$samples$beta[,10], 
-                           m11 = mod1_2$samples$beta[,11], m12 = mod1_2$samples$beta[,12])
+betas_mod1_3 <- data.frame(m1 = mod1_3$samples$beta[,1], m2 = mod1_3$samples$beta[,2], 
+                           m3 = mod1_3$samples$beta[,3], m4 = mod1_3$samples$beta[,4], 
+                           m5 = mod1_3$samples$beta[,5], m6 = mod1_3$samples$beta[,6], 
+                           m7 = mod1_3$samples$beta[,7], m8 = mod1_3$samples$beta[,8], 
+                           m9 = mod1_3$samples$beta[,9], m10 = mod1_3$samples$beta[,10], 
+                           m11 = mod1_3$samples$beta[,11], m12 = mod1_3$samples$beta[,12])
 library(ggplot2)
 library(viridis)
 library(dplyr)
-ggplot(betas_mod1_2)+
-  geom_density(aes(betas_mod1_2[,1]), fill = 'red', color = 'red')+
-  geom_density(aes(betas_mod1_2[,2]), fill = 'blue', color = 'blue')+
-  geom_density(aes(betas_mod1_2[,3]), fill = 'green', color = 'green')+
-  geom_density(aes(betas_mod1_2[,4]), fill = 'orange', color = 'orange')+
-  geom_density(aes(betas_mod1_2[,5]), fill = 'yellow', color = 'yellow')+
-  geom_density(aes(betas_mod1_2[,6]), fill = 'purple', color = 'purple')+
-  geom_density(aes(betas_mod1_2[,7]), fill = 'firebrick1', color = 'firebrick1')+
-  geom_density(aes(betas_mod1_2[,8]), fill = 'dodgerblue1', color = 'dodgerblue1')+
-  geom_density(aes(betas_mod1_2[,9]), fill = 'darkolivegreen1', color = 'darkolivegreen1')+
-  geom_density(aes(betas_mod1_2[,10]), fill = 'darkorange3', color = 'darkorange3')+
-  geom_density(aes(betas_mod1_2[,11]), fill = 'goldenrod2', color = 'goldenrod2')+
-  geom_density(aes(betas_mod1_2[,12]), fill = 'darkorchid1', color = 'darkorchid1')+
+ggplot(betas_mod1_3)+
+  geom_density(aes(betas_mod1_3[,1]), fill = 'red', color = 'red')+
+  geom_density(aes(betas_mod1_3[,2]), fill = 'blue', color = 'blue')+
+  geom_density(aes(betas_mod1_3[,3]), fill = 'green', color = 'green')+
+  geom_density(aes(betas_mod1_3[,4]), fill = 'orange', color = 'orange')+
+  geom_density(aes(betas_mod1_3[,5]), fill = 'yellow', color = 'yellow')+
+  geom_density(aes(betas_mod1_3[,6]), fill = 'purple', color = 'purple')+
+  geom_density(aes(betas_mod1_3[,7]), fill = 'firebrick1', color = 'firebrick1')+
+  geom_density(aes(betas_mod1_3[,8]), fill = 'dodgerblue1', color = 'dodgerblue1')+
+  geom_density(aes(betas_mod1_3[,9]), fill = 'darkolivegreen1', color = 'darkolivegreen1')+
+  geom_density(aes(betas_mod1_3[,10]), fill = 'darkorange3', color = 'darkorange3')+
+  geom_density(aes(betas_mod1_3[,11]), fill = 'goldenrod2', color = 'goldenrod2')+
+  geom_density(aes(betas_mod1_3[,12]), fill = 'darkorchid1', color = 'darkorchid1')+
   geom_vline(xintercept = 0, color = "red", size = 1, linetype = 3)+
    labs(title = "Posterior distribution of the month coefficients", x = "Beta", y = "Density")
 
 ## plot fitted vs. real values of DHF cases
-ds_mod1$mod1_2_fitted <- mod1_2$fitted.values
-ds_mod1$mod1_2_resid <- mod1_2$residuals$response
+ds_mod1$mod1_3_fitted <- mod1_3$fitted.values
+ds_mod1$mod1_3_resid <- mod1_3$residuals$response
 
 
+par(mfrow = c(1,2))
+ggplot(data = ds_mod1)+
+  geom_line(aes(month, m_DHF_cases, color = district))+
+  theme(legend.position = "none")
+ggplot(data = ds_mod1)+
+  geom_line(aes(month, mod1_3_fitted, color = district))+
+  theme(legend.position = "none")
 
-model.matrix(mod1)
+## fitted vs. real cases for just missing month
+ds_mod1 %>%
+  filter(year == 2006 & month == 12) %>%
+  ungroup() %>%
+  ggplot()+
+  geom_point(aes(district, m_DHF_cases), color = "blue")+
+  geom_point(aes(district, mod1_3_fitted), color = "red")
+
+## residuals 
+ds_mod1 %>%
+  ungroup() %>%
+  ggplot()+
+  geom_point(aes(district, mod1_3_resid, color = month))
+
+ds_mod1 %>%
+  ggplot()+
+  geom_point(aes(year, mod1_3_resid, color = district, shape = as_factor(month)))+
+  theme(legend.position = "none")
+
+ds_mod1 %>%
+  ggplot()+
+  geom_point(aes(month, mod1_3_resid, color = district, shape = as_factor(year)))+
+  theme(legend.position = "none")
+
+ds_mod1 %>%
+  ggplot()+
+  geom_point(aes(month, mod1_3_resid, color = year))  
+
+
 
 ```
-Should we be using our past model as the next model's prior?
+  
+## Model 2 Results
+$\beta$ = month coefficients
+$\phi$ = the vector of random effects for time period t, which evolve over time via a multivariate first or second order autoregressive process with temporal autoregressive parameter $\rho$
 
+```{r}
+#mod2$samples
 
+######### plot of betas
+beta_samples_2 <-mod2$samples$beta
+plot(beta_samples_2[1,], type='l', col='red',main="beta") # First chain
+lines(beta_samples_2[2,],col='blue')
+lines(beta_samples_2[3,], col = "green")
+lines(beta_samples_2[4,], col = "orange")
+lines(beta_samples_2[5,], col = "yellow")
+lines(beta_samples_2[6,], col = "purple")
+lines(beta_samples_2[7,], col = "firebrick1")
+lines(beta_samples_2[8,], col = "dodgerblue1")
+lines(beta_samples_2[9,], col = "darkolivegreen1")
+lines(beta_samples_2[10,], col = "darkorange3")
+lines(beta_samples_2[11,], col = "goldenrod2")
+lines(beta_samples_2[12,], col = "darkorchid1")
+
+betas_2 <- data.frame(m1 = mod2$samples$beta[,1], m2 = mod2$samples$beta[,2], m3 = mod2$samples$beta[,3], 
+                    m4 = mod2$samples$beta[,4], m5 = mod2$samples$beta[,5], m6 = mod2$samples$beta[,6], 
+                    m7 = mod2$samples$beta[,7], m8 = mod2$samples$beta[,8], m9 = mod2$samples$beta[,9], 
+                    m10 = mod2$samples$beta[,10], m11 = mod2$samples$beta[,11], m12 = mod2$samples$beta[,12])
+library(ggplot2)
+library(viridis)
+library(dplyr)
+ggplot(betas_2)+
+  geom_density(aes(betas_2[,1]), fill = 'red', color = 'red')+
+  geom_density(aes(betas_2[,2]), fill = 'blue', color = 'blue')+
+  geom_density(aes(betas_2[,3]), fill = 'green', color = 'green')+
+  geom_density(aes(betas_2[,4]), fill = 'orange', color = 'orange')+
+  geom_density(aes(betas_2[,5]), fill = 'yellow', color = 'yellow')+
+  geom_density(aes(betas_2[,6]), fill = 'purple', color = 'purple')+
+  geom_density(aes(betas_2[,7]), fill = 'firebrick1', color = 'firebrick1')+
+  geom_density(aes(betas_2[,8]), fill = 'dodgerblue1', color = 'dodgerblue1')+
+  geom_density(aes(betas_2[,9]), fill = 'darkolivegreen1', color = 'darkolivegreen1')+
+  geom_density(aes(betas_2[,10]), fill = 'darkorange3', color = 'darkorange3')+
+  geom_density(aes(betas_2[,11]), fill = 'goldenrod2', color = 'goldenrod2')+
+  geom_density(aes(betas_2[,12]), fill = 'darkorchid1', color = 'darkorchid1')+
+  geom_vline(xintercept = 0, color = "red", size = 1.5, linetype = 3)+
+   labs(title = "Posterior distribution of the month coefficients", x = "Beta", y = "Density")
+
+## plot fitted vs. real values of DHF cases
+ds_mod2$mod2_fitted <- mod2$fitted.values
+ds_mod2$mod2_resid <- mod2$residuals$response
+
+par(mfrow = c(1,2))
+ggplot(data = ds_mod2)+
+  geom_line(aes(month, m_DHF_cases, color = district))+
+  theme(legend.position = "none")
+ggplot(data = ds_mod2)+
+  geom_line(aes(month, mod2_fitted, color = district))+
+  theme(legend.position = "none")
+
+## fitted vs. real cases for just missing month
+ds_mod2 %>%
+  filter(year == 2007 & month == 1) %>%
+  ungroup() %>%
+  ggplot()+
+  geom_point(aes(district, m_DHF_cases), color = "blue")+
+  geom_point(aes(district, mod2_fitted), color = "red")
+
+## residuals 
+ds_mod2 %>%
+  ungroup() %>%
+  ggplot()+
+  geom_point(aes(district, mod2_resid, color = month))
+
+ds_mod2 %>%
+  ggplot()+
+  geom_point(aes(year, mod2_resid, color = district, shape = as_factor(month)))+
+  theme(legend.position = "none")
+
+ds_mod2 %>%
+  ggplot()+
+  geom_point(aes(month, mod2_resid, color = district, shape = as_factor(year)))+
+  theme(legend.position = "none")
+
+ds_mod2 %>%
+  ggplot()+
+  geom_point(aes(month, mod2_resid, color = year))  
+
+## tau
   
 
+
+```
+
+## Model 3 Results
+$\beta$ = month coefficients
+$\phi$ = the vector of random effects for time period t, which evolve over time via a multivariate first or second order autoregressive process with temporal autoregressive parameter $\rho$
+
+```{r}
+#mod3$samples
+plot(mod3$samples$fitted[,1], type='l')
+
+######### plot of betas
+beta_samples_3 <-mod3$samples$beta
+plot(beta_samples_3[1,], type='l', col='red',main="beta") # First chain
+lines(beta_samples_3[2,],col='blue')
+lines(beta_samples_3[3,], col = "green")
+lines(beta_samples_3[4,], col = "orange")
+lines(beta_samples_3[5,], col = "yellow")
+lines(beta_samples_3[6,], col = "purple")
+lines(beta_samples_3[7,], col = "firebrick1")
+lines(beta_samples_3[8,], col = "dodgerblue1")
+lines(beta_samples_3[9,], col = "darkolivegreen1")
+lines(beta_samples_3[10,], col = "darkorange3")
+lines(beta_samples_3[11,], col = "goldenrod2")
+lines(beta_samples_3[12,], col = "darkorchid1")
+
+betas_3 <- data.frame(m1 = mod3$samples$beta[,1], m2 = mod3$samples$beta[,2], m3 = mod3$samples$beta[,3], 
+                    m4 = mod3$samples$beta[,4], m5 = mod3$samples$beta[,5], m6 = mod3$samples$beta[,6], 
+                    m7 = mod3$samples$beta[,7], m8 = mod3$samples$beta[,8], m9 = mod3$samples$beta[,9], 
+                    m10 = mod3$samples$beta[,10], m11 = mod3$samples$beta[,11], m12 = mod3$samples$beta[,12])
+library(ggplot2)
+library(viridis)
+library(dplyr)
+ggplot(betas_3)+
+  geom_density(aes(betas_3[,1]), fill = 'red', color = 'red')+
+  geom_density(aes(betas_3[,2]), fill = 'blue', color = 'blue')+
+  geom_density(aes(betas_3[,3]), fill = 'green', color = 'green')+
+  geom_density(aes(betas_3[,4]), fill = 'orange', color = 'orange')+
+  geom_density(aes(betas_3[,5]), fill = 'yellow', color = 'yellow')+
+  geom_density(aes(betas_3[,6]), fill = 'purple', color = 'purple')+
+  geom_density(aes(betas_3[,7]), fill = 'firebrick1', color = 'firebrick1')+
+  geom_density(aes(betas_3[,8]), fill = 'dodgerblue1', color = 'dodgerblue1')+
+  geom_density(aes(betas_3[,9]), fill = 'darkolivegreen1', color = 'darkolivegreen1')+
+  geom_density(aes(betas_3[,10]), fill = 'darkorange3', color = 'darkorange3')+
+  geom_density(aes(betas_3[,11]), fill = 'goldenrod2', color = 'goldenrod2')+
+  geom_density(aes(betas_3[,12]), fill = 'darkorchid1', color = 'darkorchid1')+
+  geom_vline(xintercept = 0, color = "red", size = 1.5, linetype = 3)+
+   labs(title = "Posterior distribution of the month coefficients", x = "Beta", y = "Density")
+
+## plot fitted vs. real values of DHF cases
+ds_mod3$mod3_fitted <- mod3$fitted.values
+ds_mod3$mod3_resid <- mod3$residuals$response
+
+par(mfrow = c(1,2))
+ggplot(data = ds_mod3)+
+  geom_line(aes(month, m_DHF_cases, color = district))+
+  theme(legend.position = "none")
+ggplot(data = ds_mod3)+
+  geom_line(aes(month, mod3_fitted, color = district))+
+  theme(legend.position = "none")
+
+## fitted vs. real cases for just missing month
+ds_mod3 %>%
+  filter(year == 2007 & month == 2) %>%
+  ungroup() %>%
+  ggplot()+
+  geom_point(aes(district, m_DHF_cases), color = "blue")+
+  geom_point(aes(district, mod3_fitted), color = "red")
+
+## residuals 
+ds_mod3 %>%
+  ungroup() %>%
+  ggplot()+
+  geom_point(aes(district, mod3_resid, color = month))
+
+ds_mod3 %>%
+  ggplot()+
+  geom_point(aes(year, mod3_resid, color = district, shape = as_factor(month)))+
+  theme(legend.position = "none")
+
+ds_mod3 %>%
+  ggplot()+
+  geom_point(aes(month, mod3_resid, color = district, shape = as_factor(year)))+
+  theme(legend.position = "none")
+
+ds_mod3 %>%
+  ggplot()+
+  geom_point(aes(month, mod3_resid, color = year))  
+
+## tau
+  
+
+
+
+```
+
+try putting 95% CI around modelled counts
+plot as incidence
+try predicting in high dengue season
+
+
+## Model 4 Results
+$\beta$ = month coefficients
+$\phi$ = the vector of random effects for time period t, which evolve over time via a multivariate first or second order autoregressive process with temporal autoregressive parameter $\rho$
+
+```{r}
+#mod4$samples
+
+######### plot of betas
+beta_samples_4 <-mod4$samples$beta
+plot(beta_samples_4[1,], type='l', col='red',main="beta") # First chain
+lines(beta_samples_4[2,],col='blue')
+lines(beta_samples_4[3,], col = "green")
+lines(beta_samples_4[4,], col = "orange")
+lines(beta_samples_4[5,], col = "yellow")
+lines(beta_samples_4[6,], col = "purple")
+lines(beta_samples_4[7,], col = "firebrick1")
+lines(beta_samples_4[8,], col = "dodgerblue1")
+lines(beta_samples_4[9,], col = "darkolivegreen1")
+lines(beta_samples_4[10,], col = "darkorange3")
+lines(beta_samples_4[11,], col = "goldenrod2")
+lines(beta_samples_4[12,], col = "darkorchid1")
+
+betas_4 <- data.frame(m1 = mod4$samples$beta[,1], m2 = mod4$samples$beta[,2], m3 = mod4$samples$beta[,3], 
+                    m4 = mod4$samples$beta[,4], m5 = mod4$samples$beta[,5], m6 = mod4$samples$beta[,6], 
+                    m7 = mod4$samples$beta[,7], m8 = mod4$samples$beta[,8], m9 = mod4$samples$beta[,9], 
+                    m10 = mod4$samples$beta[,10], m11 = mod4$samples$beta[,11], m12 = mod4$samples$beta[,12])
+library(ggplot2)
+library(viridis)
+library(dplyr)
+ggplot(betas_4)+
+  geom_density(aes(betas_4[,1]), fill = 'red', color = 'red')+
+  geom_density(aes(betas_4[,2]), fill = 'blue', color = 'blue')+
+  geom_density(aes(betas_4[,3]), fill = 'green', color = 'green')+
+  geom_density(aes(betas_4[,4]), fill = 'orange', color = 'orange')+
+  geom_density(aes(betas_4[,5]), fill = 'yellow', color = 'yellow')+
+  geom_density(aes(betas_4[,6]), fill = 'purple', color = 'purple')+
+  geom_density(aes(betas_4[,7]), fill = 'firebrick1', color = 'firebrick1')+
+  geom_density(aes(betas_4[,8]), fill = 'dodgerblue1', color = 'dodgerblue1')+
+  geom_density(aes(betas_4[,9]), fill = 'darkolivegreen1', color = 'darkolivegreen1')+
+  geom_density(aes(betas_4[,10]), fill = 'darkorange3', color = 'darkorange3')+
+  geom_density(aes(betas_4[,11]), fill = 'goldenrod2', color = 'goldenrod2')+
+  geom_density(aes(betas_4[,12]), fill = 'darkorchid1', color = 'darkorchid1')+
+  geom_vline(xintercept = 0, color = "red", size = 1.5, linetype = 3)+
+   labs(title = "Posterior distribution of the month coefficients", x = "Beta", y = "Density")
+
+## plot fitted vs. real values of DHF cases
+ds_mod4$mod4_fitted <- mod4$fitted.values
+ds_mod4$mod4_resid <- mod4$residuals$response
+
+par(mfrow = c(1,2))
+ggplot(data = ds_mod4)+
+  geom_line(aes(month, m_DHF_cases, color = district))+
+  theme(legend.position = "none")
+ggplot(data = ds_mod4)+
+  geom_line(aes(month, mod4_fitted, color = district))+
+  theme(legend.position = "none")
+
+## fitted vs. real cases for just missing month
+ds_mod4 %>%
+  filter(year == 2007 & month == 3) %>%
+  ungroup() %>%
+  ggplot()+
+  geom_point(aes(district, m_DHF_cases), color = "blue")+
+  geom_point(aes(district, mod4_fitted), color = "red")
+
+## residuals 
+ds_mod4 %>%
+  ungroup() %>%
+  ggplot()+
+  geom_point(aes(district, mod4_resid, color = month))
+
+ds_mod4 %>%
+  ggplot()+
+  geom_point(aes(year, mod4_resid, color = district, shape = as_factor(month)))+
+  theme(legend.position = "none")
+
+ds_mod4 %>%
+  ggplot()+
+  geom_point(aes(month, mod4_resid, color = district, shape = as_factor(year)))+
+  theme(legend.position = "none")
+
+ds_mod4 %>%
+  ggplot()+
+  geom_point(aes(month, mod4_resid, color = year))  
+
+## tau
+  
+
+
+
+```
