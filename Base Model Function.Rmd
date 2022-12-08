@@ -1,0 +1,136 @@
+---
+title: "Base Model Function"
+author: "Elisabeth Nelson"
+date: "2022-12-06"
+output: pdf_document
+---
+
+## Load Packages
+```{r}
+
+library(MCMCpack)
+library(stats)
+library(CARBayes) # <- this is the package for the model
+library(rgdal) # <- for working with shapefiles
+library(RColorBrewer) 
+library(ggplot2)
+library(rgeos) # <- also for working with shapefiles
+library(maptools) # shapefiles again
+library(spdep) # still shapefiles 
+library(ggmap) # plotting shapefiles 
+library(sf)
+library(dplyr)
+library(tidyverse)
+library(CARBayesST)
+library(TSDT)
+library(lubridate)
+
+```
+
+## Load Needed Files
+```{r}
+base_model_final <- readRDS("base_model_final.RDS")
+neighb.mat_2 <- readRDS("neighb.mat_2.RDS")
+
+```
+
+## Function for generating dataset
+```{r}
+
+#initially, fit through nov 2006, set dec 2006 to NA
+#'2006-12-01'
+
+advance_missing_func <- function(N_advance){
+      
+      base_model_for_model_1 <- base_model_final %>% 
+        mutate(year = unfactor(year),
+               #monthN = as.numeric(gsub('m','', month)),
+               date = as.Date(paste(year, month, '01', sep='-')),
+               pop=if_else(is.na(pop), 0.5 ,pop)) %>%
+        filter( date <= (as.Date('2006-12-01' ) %m+% months(N_advance) )) %>%
+        arrange(district, date) %>%
+        group_by(district) %>%
+        mutate( m_DHF_cases=if_else(is.na(m_DHF_cases),0, m_DHF_cases), ##ALERT...assuming nov, dec missing=0
+          index= row_number() , 
+               m_DHF_cases_fit = if_else(index==max(index,na.rm=T), NA_real_,m_DHF_cases) ) %>%
+        filter(VARNAME_2 != "Kien Hai", 
+         VARNAME_2 != "Phu Quoc") %>%
+        dplyr::select(month, year, district, m_DHF_cases,m_DHF_cases_fit, pop) %>%
+        arrange(month, year, district)
+}
+
+ds <- advance_missing_func(0)
+
+# function for generating dataset without missing month
+ds_for_mod_plots_func <- function(N_advance){
+      
+      base_model_for_model_1 <- base_model_final %>% 
+        mutate(year = unfactor(year),
+               date = as.Date(paste(year, month, '01', sep='-')),
+               pop=if_else(is.na(pop), 0.5 ,pop)) %>%
+        filter( date <= (as.Date('2006-12-01' ) %m+% months(N_advance) )) %>%
+        arrange(district, date) %>%
+        group_by(district) %>%
+        filter(VARNAME_2 != "Kien Hai", 
+         VARNAME_2 != "Phu Quoc") %>%
+        dplyr::select(month, year, district, m_DHF_cases, pop) %>%
+        arrange(month, year, district)
+}
+
+ds_mod1 <- ds_for_mod_plots_func(0)
+
+```
+
+## Base Model
+For this model, n_advance = model # - 1 because need to start at 0 for month 12, 2006
+```{r}
+###############################################################
+
+#Model Fitting
+
+###############################################################
+
+# default of burnin = 10000, n.sample = 110000, thin = 10
+
+mod.func <- function(N_advance) {
+  ds <- advance_missing_func(N_advance) 
+ 
+  x_model = model.matrix(~ as.factor(as.numeric(month)), data = ds)
+
+  offset_model = log(ds$pop)
+
+
+  results<-ST.CARar(m_DHF_cases_fit ~ -1 + x_model + offset(offset_model) , 
+                  data = ds,
+
+                  family = "poisson",
+
+                  W = neighb.mat_2,
+
+                  burnin = 10000, 
+
+                  n.sample = 110000,
+
+                  thin = 10,
+
+                  prior.mean.beta = rep(0,
+
+                                        times = ncol(x_model)),
+                                        
+                  prior.var.beta = rep((100^2),
+
+                                       times = ncol(x_model)),
+
+                  prior.tau2 = c(0.01, 0.01),
+                  
+                  AR = 1,
+
+                  MALA = TRUE,
+
+                  verbose = TRUE)
+}
+
+mod4 <- mod.func(3)
+
+```
+
