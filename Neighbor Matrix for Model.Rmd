@@ -1,0 +1,84 @@
+---
+title: "Neighbor Matrix for Model"
+author: "Elisabeth Nelson"
+date: "2022-12-06"
+output: pdf_document
+---
+## Load Packages
+```{r}
+
+library(MCMCpack)
+library(stats)
+library(CARBayes) # <- this is the package for the model
+library(rgdal) # <- for working with shapefiles
+library(RColorBrewer) 
+library(ggplot2)
+library(rgeos) # <- also for working with shapefiles
+library(maptools) # shapefiles again
+library(spdep) # still shapefiles 
+library(ggmap) # plotting shapefiles 
+library(sf)
+library(dplyr)
+library(tidyverse)
+library(CARBayesST)
+library(TSDT)
+library(lubridate)
+
+```
+
+## Set-up for Carbays
+```{r}
+# Number of spatial units (e.g., districts in MDR)
+n.district <- 134
+n.district2 <- 132
+
+# Create an n x􏰀 n identity matrix
+Id.mat <- diag(n.district)
+Id.mat2 <- diag(n.district2)
+
+# load shapefile
+MDR_2 <- st_read(dsn = '/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/MDR Updated map/VMD_districts_2022.shp')
+
+# remove island districts (no neigbors)
+MDR_3 <- MDR_2 %>%
+  filter(VARNAME_2 != "Kien Hai", 
+         VARNAME_2 != "Phu Quoc")
+```
+
+## Neighbor Matrix
+```{r}
+# Neighbors can either be Queen (any zip that touches another zip - even at 
+# corners) or Rook neighbors (share full sides -- not corners)
+
+# The snap dist is governing the NA in neighbor matrix
+# Can remove SNAP statement; if Queen = F then single point touch not allowed 
+# and Rook distance used.
+
+# Try to make snap distance as small as possible while making sure all districts
+# have at least one neighbor
+neighb <- poly2nb(MDR_2, queen = T, snap = sqrt(0.001))
+
+
+# Check average number of links -- increase snap distance if it says there is 
+# a zip with zero neighbors
+neighb 
+  
+# Make neighbor matrix 
+# if zero.policy FALSE stop with error for any empty neighbour sets, 
+# if TRUE permit the weights list to be formed with zero-length weights vectors
+# B is the basic binary coding, W is row standardised (both are commonly used)
+neighb.mat <- nb2mat(neighb, zero.policy = T, style = 'B')
+
+# the islands will not have neighbors, so need to exclude it at first (islands Kien Hai/District + Phu Quoc/City)
+neighb2 <- poly2nb(MDR_3, queen = T, snap = sqrt(0.001))
+neighb2
+neighb.mat_2 <- nb2mat(neighb2, zero.policy = T, style = 'B')
+
+```
+
+## Save as a .RDS
+```{r}
+
+saveRDS(neighb.mat_2, "neighb.mat_2.RDS")
+
+```
