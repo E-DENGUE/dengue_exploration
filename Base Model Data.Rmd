@@ -13,6 +13,8 @@ library(dplyr)
 library(tidyverse)
 library(TSDT)
 library(lubridate)
+library(sp)
+library(sf)
 
 ```
 
@@ -20,6 +22,7 @@ library(lubridate)
 ```{r}
 # read in MDR_Dengue_mpa
 MDR_Dengue_map_restored <- readRDS("MDR_Dengue_map.RDS")
+
 
 # create data frame
 base_model_2001_2006_agg <- fortify(MDR_Dengue_map_restored) 
@@ -116,12 +119,46 @@ base_model_2001_2006_agg_filter <- base_model_2001_2006_agg_filter %>%
   filter(!(VARNAME_2 %in% names_to_delete))
 
 # rotate month variables into one column
-base_model_final <- base_model_2001_2006_agg_filter %>%
+base_model_2001_2006_filter_long <- base_model_2001_2006_agg_filter %>%
   pivot_longer(cols = starts_with("m"), 
                values_to = "m_DHF_cases", 
                names_to = "month") %>%
   mutate(month = as.numeric(gsub('m','', month)),
          m_DHF_cases = as.numeric(m_DHF_cases))
+
+# ensure all districts are listed through all the years
+agg1 <- base_model_2001_2006_filter_long %>%
+  #bind_rows() %>% 
+  #group_by(VARNAME_2, year, month) %>%
+  #summarize(m_DHF_cases = n())  %>%
+  #ungroup  %>%
+  mutate(month=as.factor(month),
+ year=as.factor(year),
+ district =as.factor(VARNAME_2)) %>%
+  tidyr::complete(year, month, VARNAME_2, fill=list(m_DHF_cases=NA)) #fills NA
+
+# fill-in missing geometries
+base_model_geometries <- base_model_2001_2006_filter_long %>%
+  dplyr::select(VARNAME_2, geometry) 
+
+base_model_geometries <- base_model_geometries %>%
+  filter(VARNAME_2 == unique(VARNAME_2)) %>%
+  distinct(VARNAME_2, .keep_all = T)
+
+agg2 <- left_join(agg1, base_model_geometries, by = c("VARNAME_2" = "VARNAME_2"))
+
+agg3 <- agg2 %>%
+  select(!(geometry.x)) %>%
+  rename("geometry" = geometry.y)
+
+missing_long_my <- MDR_2$geometry[MDR_2$NAME_2 == "Long Mỹ (Thị xã)"]
+
+agg3$geometry[agg3$VARNAME_2 == "Long My Town"] <- missing_long_my
+
+# put in final form
+base_model_final <- agg3 %>%
+  mutate(month = as.numeric(month),
+    m_DHF_cases = as.numeric(m_DHF_cases))
 
 ```
 
