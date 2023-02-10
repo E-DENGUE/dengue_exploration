@@ -65,9 +65,6 @@ updated_MDR_Dengue_Cases <- left_join(MDR_Dengue_Cases, MDR_district_cases_pop, 
 # fixed mo cay district --> combine populations of mo cay nam and mo cay bac based on updated district codes
 # fixed cần thơ not --> combine Binh Thuy, Co Do, Cai Rang, Ninh Kieu, Phong Dien, Thoi Lai based on updated district codes 
 
-  
-
-
 ```
 
 ## Changing the District Names
@@ -962,6 +959,83 @@ MDR_monthly_average_map <- MDR_monthly_average_map %>%
   labs(title = "Average Monthly DHF Cases 2001 - 2018", subtitle = "Grouped by month")
   
   
+```
+
+```{r}
+base_model_final <- readRDS("base_model_final.RDS")
+
+base_model_final %>%
+  mutate(m_DHF_cases = if_else(m_DHF_cases == 0, 0.1, m_DHF_cases), 
+         m_DHF_cases = if_else(is.na(m_DHF_cases), 0.1, m_DHF_cases), 
+         log_inc = log(m_DHF_cases/pop*100000)) %>%
+ggplot()+
+  geom_sf(aes(geometry = geometry, fill = log_inc, na.rm = T), lwd = 0, size = 0.25)+
+  facet_wrap(~factor(month))+
+  viridis::scale_fill_viridis(option = "magma", 
+                              direction = -1, 
+                              name = "DHF Incidence (log per 100,000)", 
+                              oob = scales::squish)+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "Average Monthly DHF Incidence 2001 - 2018", subtitle = "Grouped by month")
+
+base_model_final_2 <- base_model_final %>%
+  ungroup() %>%
+  group_by(VARNAME_2) %>%
+  mutate(total_cases = sum(total_DHF_cases, na.rm = T), 
+            avg_pop = mean(pop, na.rm = T),
+         inc = total_cases/avg_pop*100000,
+            log_inc = log(total_cases/avg_pop*100000), 
+         inc = if_else(is.na(inc), 0, inc),
+         log_inc = if_else(is.na(log_inc), 0, log_inc)) %>%
+  distinct(geometry, .keep_all = T) 
+
+ggplot(data = base_model_final_2)+
+  geom_sf(aes(geometry = geometry, fill = log_inc, na.rm = T), lwd = 0, size = 0.25)+
+   viridis::scale_fill_viridis(option = "magma", 
+                              direction = -1, 
+                              name = "DHF Incidence (log per 100,000)", 
+                              oob = scales::squish)+
+    theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA))+
+  labs(title = "Average DHF Incidence 2001 - 2018")
+ 
+###### heat maps 
+base_model_final_3 <- base_model_final %>%
+  ungroup() %>%
+  group_by(VARNAME_2, year) %>%
+  summarize(tot_cases = sum(m_DHF_cases, na.rm = T)) %>% 
+  mutate(tot_cases = if_else(is.na(tot_cases), 0, tot_cases)) %>%
+  ungroup() %>%
+  group_by(VARNAME_2) %>%
+  mutate(scaled_cases = tot_cases/max(tot_cases))
+  
+
+
+# by each district
+ggplot(base_model_final_3, aes(year, VARNAME_2, fill = scaled_cases))+
+  geom_tile()+ 
+  scale_fill_distiller(name = "DHF Cases", 
+                       palette = "Blues", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+  theme(axis.text.y = element_text(size = 3))+
+  labs(x = "Year", y = "District", title ="Heatmap of DHF Cases in MDR 2001 - 2018")
+
+
+# by each province
+ggplot(MDR_dengue_heatmap, aes(year, NAME_1, fill = scaled_cases))+
+  geom_tile() +
+  scale_fill_distiller(name = "Scaled DHF Cases", 
+                       palette = "Blues", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+  labs(x = "Year", y = "Province", title = "Heatmap of MDR DHF Cases in MDR 2001 - 2018")
+
 ```
 
 
