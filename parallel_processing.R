@@ -1,29 +1,8 @@
 library(parallel) 
-library(future)
 
 source('base_model_cluster.R')
 
-n_cores <- max(availableCores(methods=c("system")) - 1, 1)
+n_cores <- Sys.getenv("SLURM_CPUS_PER_TASK", 1)
 
-cl1 <- parallel::makeCluster(n_cores)
-
-
-clusterEvalQ(cl=cl1, {
-  library(lubridate, quietly = TRUE)
-  library(dplyr, quietly = TRUE)
-  library(CARBayes)
-  library(CARBayesST)
-  library(TSDT)
-})
-
-clusterExport(cl1, c('mod.func','advance_missing_func', 'base_model_final', 
-                     'neighb.mat_2', 'samples_to_quant'), environment())
-
-mod1 <- parLapply(
-  cl = cl1,
-  1:73,
-  fun = mod.func
-)
-
-stopCluster(cl1)
+mod1 <- mclapply(0:144, mod.func, mc.cores=n_cores)
 
