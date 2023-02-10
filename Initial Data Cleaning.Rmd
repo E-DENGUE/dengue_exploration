@@ -14,6 +14,7 @@ library(ggplot2)
 library(tidyr)
 library(tidyverse)
 library(tsibble)
+library(plotly)
 
 ```
 
@@ -350,6 +351,22 @@ MDR_Dengue_map <- MDR_Dengue_map_1 %>%
 
 MDR_Dengue_map <- MDR_Dengue_map %>%
   mutate(log_DHF_incidence = ifelse(log_DHF_incidence == -Inf, 0, log_DHF_incidence))
+
+#g <- ggplot(data = MDR_Dengue_map)+
+  geom_sf(aes(fill = total_DHF_cases, names = VARNAME_2), color = "black", size = 0.25)+
+  scale_fill_distiller(name = "DHF Cases", 
+                       palette = "Blues", 
+                       direction = 1,
+                       breaks = pretty_breaks())+
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = "white", color = NA)) +
+  labs(title = "Total DHF Cases in MDR 2001-2018")
+# ggplotly(g)
+#g
+ 
+ # long my, phung hiep, nga nam
 
 ```
 
