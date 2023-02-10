@@ -97,8 +97,6 @@ samples_to_quant <- function(X){
   return(quant1)
 } 
 
-
-
 mod.func <- function(N_advance) {
   ds <- advance_missing_func(N_advance) 
  
@@ -114,9 +112,9 @@ mod.func <- function(N_advance) {
 
                   W = neighb.mat_2,
 
-                  burnin = 10000, 
+                  burnin = 1000, 
 
-                  n.sample = 110000,
+                  n.sample = 11000,
 
                   thin = 10,
 
@@ -139,30 +137,26 @@ mod.func <- function(N_advance) {
  #attributes(fitted) <- NULL
  #posterior_quant <- matrix(fitted)
 # posterior_quant <- as.data.frame(fitted)
- posterior_quant_df <- lapply(X = results$samples,FUN = samples_to_quant)
- # save to a file
- saveRDS(posterior_quant_df, paste0("posterior_mod_", N_advance,".rds"))
+ #posterior_quant_df <- lapply(X = matrix(results$samples$fitted, results$samples$Y),FUN = samples_to_quant)
+ #posterior_quant_df <- quantile(results$samples$fitted, probs=c(0.025, 0.975,seq(0.01, 0.99, by=0.01)))
+ #posterior_quant_df <- lapply(results$samples$fitted, quantile, probs=c(0.025, 0.975,seq(0.01, 0.99, by=0.01)))
+  #posterior_quant <- lapply(results$samples$fitted, quantile, probs=c(0.025, 0.975))
+  #posterior_fitted <- results$fitted
+   post_quantiles <- lapply(X = results$samples,FUN = samples_to_quant)
+   post_fitted_quant <- post_quantiles$fitted
+  # save to a file
+   saveRDS(post_fitted_quant, paste0("posterior_quant_", N_advance,".rds"))
+ #saveRDS(posterior_quant, paste0("posterior_quant_", N_advance,".rds"))
+ #saveRDS(posterior_fitted, paste0("posterior_fitted_", N_advance,".rds"))
   return(0)
 }
 
 #mod_aug_2007 <- mod.func(8)
 
- # pull out fitted values
-  # fitted <- results$samples$fitted
-   # turn into a data frame
-  # posterior_quant <- as.data.frame(t(fitted))
-   # compute quantiles
-   posterior_quant_df <- lapply(X = results$samples$fitted,FUN = samples_to_quant)
-   # save to a file
-   saveRDS(posterior_quant_df, paste0("posterior_mod_", N_advance,".rds"))
-  return(0)
-fitted <- mod_aug_2007$samples$fitted
-attributes(fitted) <- NULL
-posterior_quant <- matrix(fitted)
 
- posterior_quant_df <- lapply(X = posterior_quant,FUN = samples_to_quant)
 
-mod.func(3)
+mod.func(2)
+
 
 
 
