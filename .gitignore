@@ -10,3 +10,10 @@ CAR.R
 Model Building Explanation.Rmd
 Data\MDR_Dengue_map.csv
 base_model_final.RDS
+.RDataTmp2
+posterior_mod_2.rds
+posterior_mod_3.rds
+posterior_mod_4.rds
+posterior_quant_1 (2).rds
+posterior_quant_2.rds
+MDR_Dengue_map.RDS
