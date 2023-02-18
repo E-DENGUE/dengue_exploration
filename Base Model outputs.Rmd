@@ -1,0 +1,877 @@
+---
+title: "Base Moel Output"
+author: "Elisabeth Nelson"
+date: "2023-02-15"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+library(tsibble)
+library(plotly)
+library(lubridate)
+library(TSDT)
+library(rgeos) 
+library(maptools) 
+library(spdep)  
+library(ggmap)  
+library(sf)
+library(rgdal)
+```
+
+## Base Model - Observed Cases
+```{r}
+base_model_final <- readRDS("base_model_final.RDS")
+
+base_model_final_2 <- base_model_final %>%
+  mutate(year = as_factor(year)) %>%
+  filter(VARNAME_2 != "Kien Hai", 
+         VARNAME_2 != "Phu Quoc") %>%
+  distinct(year, month, VARNAME_2, NAME_1, ENGTYPE_2, .keep_all = T)
+
+```
+
+## Pick 3 Districts to Check
+lowest avg = 	Vinh Hung
+highest avg = Cai Lay District
+middle avg = Phu Tan An Giang
+```{r}
+around_since_2001 <- base_model_final$VARNAME_2[base_model_final$year == 2001 & base_model_final$m_DHF_cases > 0]
+around_until_2018 <- base_model_final$VARNAME_2[base_model_final$year == 2018 & base_model_final$m_DHF_cases > 0]
+
+top_3_districts <- base_model_final %>%
+  filter(VARNAME_2 %in% around_since_2001) %>%
+  filter(VARNAME_2 %in% around_until_2018) %>%
+  group_by(VARNAME_2) %>%
+  summarize(avg_m_cases = mean(m_DHF_cases, na.rm = T), 
+            tot_m_cases = sum(m_DHF_cases, na.rm = T))
+
+```
+
+## Model 1
+```{r}
+base_model_1 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(1))) %>%
+  mutate(t = row_number())
+
+# model output
+post_quant_1 <- readRDS("Data/posterior_quant_1 (2).rds")
+
+# 2.5% CI
+post_quant_1_2.5 <- as.data.frame(post_quant_1)[1,]
+post_quant_1_2.5 <- post_quant_1_2.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# 97.5% CI
+post_quant_1_97.5 <- as.data.frame(post_quant_1)[2,]
+post_quant_1_97.5 <- post_quant_1_97.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# join to base model
+model_check <- left_join(base_model_1, post_quant_1_2.5, by = c("t" = "t"))
+model_check_1 <- left_join(model_check, post_quant_1_97.5, by = c("t" = "t"))
+
+# calculate incidence
+model_check_1 <- model_check_1 %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc_2.5 = (value.x/pop)*100,000, 
+         fitted_inc_97.5 = (value.y/pop)*100,000)
+
+# Vinh Hung
+model_check_1 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 1")
+
+model_check_1 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 1", subtitle = "Incidence per 100,000")
+
+# Cai Lay District
+model_check_1 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 1")
+
+model_check_1 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 1", subtitle = "Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_1 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 1")
+
+model_check_1 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 1", subtitle = "Incidence per 100,000")
+
+```
+
+## Model 10
+```{r}
+base_model_10 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(10))) %>%
+  mutate(t = row_number())
+
+# model output
+post_quant_10 <- readRDS("Data/posterior_quant_10.rds")
+
+# 2.5% CI
+post_quant_10_2.5 <- as.data.frame(post_quant_10)[1,]
+post_quant_10_2.5 <- post_quant_10_2.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# 97.5% CI
+post_quant_10_97.5 <- as.data.frame(post_quant_10)[2,]
+post_quant_10_97.5 <- post_quant_10_97.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# join to base model
+model_check <- left_join(base_model_10, post_quant_10_2.5, by = c("t" = "t"))
+model_check_10 <- left_join(model_check, post_quant_10_97.5, by = c("t" = "t"))
+
+# calculate incidence
+model_check_10 <- model_check_10 %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc_2.5 = (value.x/pop)*100,000, 
+         fitted_inc_97.5 = (value.y/pop)*100,000)
+
+# Vinh Hung
+model_check_10 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 10")
+
+model_check_10 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 10", subtitle = "Incidence per 100,000")
+
+# Cai Lay District
+model_check_10 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 10")
+
+model_check_10 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 10", subtitle = "Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_10 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 10")
+
+model_check_10 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 10", subtitle = "Incidence per 100,000")
+
+```
+
+## Model 20
+```{r}
+base_model_20 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(20))) %>%
+  mutate(t = row_number())
+
+# model output
+post_quant_20 <- readRDS("Data/posterior_quant_20.rds")
+
+# 2.5% CI
+post_quant_20_2.5 <- as.data.frame(post_quant_20)[1,]
+post_quant_20_2.5 <- post_quant_20_2.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# 97.5% CI
+post_quant_20_97.5 <- as.data.frame(post_quant_20)[2,]
+post_quant_20_97.5 <- post_quant_20_97.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# join to base model
+model_check <- left_join(base_model_20, post_quant_20_2.5, by = c("t" = "t"))
+model_check_20 <- left_join(model_check, post_quant_20_97.5, by = c("t" = "t"))
+
+# calculate incidence
+model_check_20 <- model_check_20 %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc_2.5 = (value.x/pop)*100,000, 
+         fitted_inc_97.5 = (value.y/pop)*100,000)
+
+# Vinh Hung
+model_check_20 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 20")
+
+model_check_20 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 20", subtitle = "Incidence per 100,000")
+
+# Cai Lay District
+model_check_20 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 20")
+
+model_check_20 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 20", subtitle = "Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_20 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 20")
+
+model_check_20 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 20", subtitle = "Incidence per 100,000")
+
+```
+
+## Model 30
+```{r}
+
+```
+
+## Model 40 
+```{r}
+base_model_40 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(40))) %>%
+  mutate(t = row_number())
+
+# model output
+post_quant_40 <- readRDS("Data/posterior_quant_40.rds")
+
+# 2.5% CI
+post_quant_40_2.5 <- as.data.frame(post_quant_40)[1,]
+post_quant_40_2.5 <- post_quant_40_2.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# 97.5% CI
+post_quant_40_97.5 <- as.data.frame(post_quant_40)[2,]
+post_quant_40_97.5 <- post_quant_40_97.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# join to base model
+model_check <- left_join(base_model_40, post_quant_40_2.5, by = c("t" = "t"))
+model_check_40 <- left_join(model_check, post_quant_40_97.5, by = c("t" = "t"))
+
+# calculate incidence
+model_check_40 <- model_check_40 %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc_2.5 = (value.x/pop)*100,000, 
+         fitted_inc_97.5 = (value.y/pop)*100,000)
+
+# Vinh Hung
+model_check_40 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 40")
+
+model_check_40 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 40", subtitle = "Incidence per 100,000")
+
+# Cai Lay District
+model_check_40 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 40")
+
+model_check_40 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 40", subtitle = "Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_40 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 40")
+
+model_check_40 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 40", subtitle = "Incidence per 100,000")
+
+```
+
+## Model 50
+```{r}
+
+```
+
+## Model 60
+```{r}
+base_model_60 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(60))) %>%
+  mutate(t = row_number())
+
+# model output
+post_quant_60 <- readRDS("Data/posterior_quant_60.rds")
+
+# 2.5% CI
+post_quant_60_2.5 <- as.data.frame(post_quant_60)[1,]
+post_quant_60_2.5 <- post_quant_60_2.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# 97.5% CI
+post_quant_60_97.5 <- as.data.frame(post_quant_60)[2,]
+post_quant_60_97.5 <- post_quant_60_97.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# join to base model
+model_check <- left_join(base_model_60, post_quant_60_2.5, by = c("t" = "t"))
+model_check_60 <- left_join(model_check, post_quant_60_97.5, by = c("t" = "t"))
+
+# calculate incidence
+model_check_60 <- model_check_60 %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc_2.5 = (value.x/pop)*100,000, 
+         fitted_inc_97.5 = (value.y/pop)*100,000)
+
+# Vinh Hung
+model_check_60 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 60")
+
+model_check_60 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 60", subtitle = "Incidence per 100,000")
+
+# Cai Lay District
+model_check_60 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 60")
+
+model_check_60 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 60", subtitle = "Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_60 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 60")
+
+model_check_60 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 60", subtitle = "Incidence per 100,000")
+```
+
+## Model 70
+```{r}
+
+```
+
+## Model 80
+```{r}
+base_model_80 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(80))) %>%
+  mutate(t = row_number())
+
+# model output
+post_quant_80 <- readRDS("Data/posterior_quant_80.rds")
+
+# 2.5% CI
+post_quant_80_2.5 <- as.data.frame(post_quant_80)[1,]
+post_quant_80_2.5 <- post_quant_80_2.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# 97.5% CI
+post_quant_80_97.5 <- as.data.frame(post_quant_80)[2,]
+post_quant_80_97.5 <- post_quant_80_97.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# join to base model
+model_check <- left_join(base_model_80, post_quant_80_2.5, by = c("t" = "t"))
+model_check_80 <- left_join(model_check, post_quant_80_97.5, by = c("t" = "t"))
+
+# calculate incidence
+model_check_80 <- model_check_80 %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc_2.5 = (value.x/pop)*100,000, 
+         fitted_inc_97.5 = (value.y/pop)*100,000)
+
+# Vinh Hung
+model_check_80 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  ylim(0, 110)+
+  theme_classic()+
+  labs(title = "Vinh Hung, 80")
+
+model_check_80 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  ylim(0, 0.1)+
+  theme_classic()+
+  labs(title = "Vinh Hung, 80", subtitle = "Incidence per 100,000")
+
+# Cai Lay District
+model_check_80 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  ylim(0, 110)+
+  theme_classic()+
+  labs(title = "Cai Lay District, 80")
+
+model_check_80 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  ylim(0, 0.1)+
+  theme_classic()+
+  labs(title = "Cai Lay District, 80", subtitle = "Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_80 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  ylim(0, 110)+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 80")
+
+model_check_80 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  ylim(0, 0.1)+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 80", subtitle = "Incidence per 100,000")
+
+
+```
+
+## Model 90
+```{r}
+
+```
+
+## Model 100
+```{r}
+base_model_100 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(100))) %>%
+  mutate(t = row_number())
+
+# model output
+post_quant_100 <- readRDS("Data/posterior_quant_100.rds")
+
+# 2.5% CI
+post_quant_100_2.5 <- as.data.frame(post_quant_100)[1,]
+post_quant_100_2.5 <- post_quant_100_2.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# 97.5% CI
+post_quant_100_97.5 <- as.data.frame(post_quant_100)[2,]
+post_quant_100_97.5 <- post_quant_100_97.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# join to base model
+model_check <- left_join(base_model_100, post_quant_100_2.5, by = c("t" = "t"))
+model_check_100 <- left_join(model_check, post_quant_100_97.5, by = c("t" = "t"))
+
+# calculate incidence
+model_check_100 <- model_check_100 %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc_2.5 = (value.x/pop)*100,000, 
+         fitted_inc_97.5 = (value.y/pop)*100,000)
+
+# Vinh Hung
+model_check_100 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 100")
+
+model_check_100 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 100", subtitle = "Incidence per 100,000")
+
+# Cai Lay District
+model_check_100 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 100")
+
+model_check_100 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 100", subtitle = "Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_100 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 100")
+
+model_check_100 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 100", subtitle = "Incidence per 100,000")
+
+```
+
+## Model 110
+```{r}
+
+```
+
+## Model 120
+```{r}
+base_model_120 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(120))) %>%
+  mutate(t = row_number())
+
+# model output
+post_quant_120 <- readRDS("Data/posterior_quant_120.rds")
+
+# 2.5% CI
+post_quant_120_2.5 <- as.data.frame(post_quant_120)[1,]
+post_quant_120_2.5 <- post_quant_120_2.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# 97.5% CI
+post_quant_120_97.5 <- as.data.frame(post_quant_120)[2,]
+post_quant_120_97.5 <- post_quant_120_97.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# join to base model
+model_check <- left_join(base_model_120, post_quant_120_2.5, by = c("t" = "t"))
+model_check_120 <- left_join(model_check, post_quant_120_97.5, by = c("t" = "t"))
+
+# calculate incidence
+model_check_120 <- model_check_120 %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc_2.5 = (value.x/pop)*100,000, 
+         fitted_inc_97.5 = (value.y/pop)*100,000)
+
+# Vinh Hung
+model_check_120 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 120")
+
+model_check_120 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 120", subtitle = "Incidence per 100,000")
+
+# Cai Lay District
+model_check_120 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 120")
+
+model_check_120 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 120", subtitle = "Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_120 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 120")
+
+model_check_120 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 120", subtitle = "Incidence per 100,000")
+```
+
+## Model 130
+```{r}
+
+```
+
+## Model 140
+```{r}
+
+```
+
+## Model 144
+```{r}
+base_model_144 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(144))) %>%
+  mutate(t = row_number())
+
+# model output
+post_quant_144 <- readRDS("Data/posterior_quant_144.rds")
+
+# 2.5% CI
+post_quant_144_2.5 <- as.data.frame(post_quant_144)[1,]
+post_quant_144_2.5 <- post_quant_144_2.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# 97.5% CI
+post_quant_144_97.5 <- as.data.frame(post_quant_144)[2,]
+post_quant_144_97.5 <- post_quant_144_97.5  %>%
+  pivot_longer(cols = starts_with("var")) %>%
+  mutate(t = row_number())
+
+# join to base model
+model_check <- left_join(base_model_144, post_quant_144_2.5, by = c("t" = "t"))
+model_check_144 <- left_join(model_check, post_quant_144_97.5, by = c("t" = "t"))
+
+# calculate incidence
+model_check_144 <- model_check_144 %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc_2.5 = (value.x/pop)*100,000, 
+         fitted_inc_97.5 = (value.y/pop)*100,000)
+
+# Vinh Hung
+model_check_144 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 144")
+
+model_check_144 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Vinh Hung, 144", subtitle = "Incidence per 100,000")
+
+# Cai Lay District
+model_check_144 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 144")
+
+model_check_144 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Cai Lay District, 144", subtitle = "Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_144 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_errorbar(aes(date, ymin = value.x, ymax = value.y), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 144")
+
+model_check_144 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
+  theme_classic()+
+  labs(title = "Phu Tan An Giang, 144", subtitle = "Incidence per 100,000")
+```
+
