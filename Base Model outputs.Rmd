@@ -873,5 +873,7 @@ model_check_144 %>%
   geom_errorbar(aes(date, ymin = fitted_inc_2.5, ymax = fitted_inc_97.5), color = "red")+
   theme_classic()+
   labs(title = "Phu Tan An Giang, 144", subtitle = "Incidence per 100,000")
+
+saveRDS(summary(mod_aug_2007), "mod_sum.rds")
 ```
 
