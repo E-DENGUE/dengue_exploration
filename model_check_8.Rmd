@@ -1,0 +1,378 @@
+---
+title: "Model Run Outputs"
+author: "Elisabeth Nelson"
+date: "2023-02-22"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+library(tsibble)
+library(plotly)
+library(lubridate)
+library(TSDT)
+library(rgeos) 
+library(maptools) 
+library(spdep)  
+library(ggmap)  
+library(sf)
+library(rgdal)
+```
+
+## Base Model - Observed Cases
+```{r, include=FALSE}
+base_model_final <- readRDS("base_model_final.RDS")
+
+base_model_final_2 <- base_model_final %>%
+  mutate(year = as_factor(year)) %>%
+  filter(VARNAME_2 != "Kien Hai", 
+         VARNAME_2 != "Phu Quoc") %>%
+  distinct(year, month, VARNAME_2, NAME_1, ENGTYPE_2, .keep_all = T) %>%
+  arrange(year, month, VARNAME_2)
+
+
+
+```
+
+## Pick 3 Districts to Check
+lowest avg = 	Vinh Hung
+highest avg = Cai Lay District
+middle avg = Phu Tan An Giang
+```{r, include=FALSE}
+around_since_2001 <- base_model_final$VARNAME_2[base_model_final$year == 2001 & base_model_final$m_DHF_cases > 0]
+around_until_2018 <- base_model_final$VARNAME_2[base_model_final$year == 2018 & base_model_final$m_DHF_cases > 0]
+
+top_3_districts <- base_model_final %>%
+  filter(VARNAME_2 %in% around_since_2001) %>%
+  filter(VARNAME_2 %in% around_until_2018) %>%
+  group_by(VARNAME_2) %>%
+  summarize(avg_m_cases = mean(m_DHF_cases, na.rm = T), 
+            tot_m_cases = sum(m_DHF_cases, na.rm = T))
+
+```
+
+## Mod Aug 2007 
+```{r, message=FALSE, warning=FALSE, tidy=TRUE, fig.show='hold', out.width="50%"}
+base_model_aug_2007 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(8))) %>%
+  mutate(t = row_number())
+
+
+# model output
+mod_aug_2007_2 <- as.data.frame(mod8$fitted.values)
+mod_aug_2007_2 <- mod_aug_2007_2 %>%
+  mutate(t = row_number(), 
+         fitted = mod_aug_2007$fitted.values) 
+
+# join to base model
+model_check_aug_2007 <- left_join(base_model_aug_2007, mod_aug_2007_2, by = c("t" = "t"))
+
+
+# calculate incidence
+model_check_aug_2007 <- model_check_aug_2007 %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc = (fitted/pop)*100,000)
+
+# Vinh Hung
+model_check_aug_2007 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_point(aes(date, fitted), color = "red")+
+  geom_line(aes(date, m_DHF_cases), col = "black")+
+  geom_line(aes(date, fitted), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Monthly DHF Cases")+
+  labs(title = "Vinh Hung", subtitle = "Model run to predict August 2007")
+
+model_check_aug_2007 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_point(aes(date, fitted_inc), color = "red")+
+  geom_line(aes(date, monthly_inc), col = "black")+
+  geom_line(aes(date, fitted_inc), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Monthly DHF Incidence")+
+  labs(title = "Vinh Hung", subtitle = "Model run to predict August 2007, Incidence per 100,000")
+
+model_check_aug_2007 %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, log(monthly_inc)), col = "black")+
+  geom_point(aes(date, log(fitted_inc)), color = "red")+
+  geom_line(aes(date, log(monthly_inc)), col = "black")+
+  geom_line(aes(date, log(fitted_inc)), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Log Monthly DHF Incidence")+
+  labs(title = "Vinh Hung", subtitle = "Model run to predict August 2007, Log Incidence per 100,000")
+
+# Cai Lay District
+model_check_aug_2007 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_point(aes(date, fitted), color = "red")+
+  geom_line(aes(date, m_DHF_cases), col = "black")+
+  geom_line(aes(date, fitted), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Monthly DHF Cases")+
+  labs(title = "Cai Lay District", subtitle = "Model run to predict August 2007")
+
+model_check_aug_2007 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_point(aes(date, fitted_inc), color = "red")+
+  geom_line(aes(date, monthly_inc), col = "black")+
+  geom_line(aes(date, fitted_inc), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Monthly DHF Incidence")+
+  labs(title = "Cai Lay District", subtitle = "Model run to predict August 2007, Incidence per 100,000")
+
+model_check_aug_2007 %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, log(monthly_inc)), col = "black")+
+  geom_point(aes(date, log(fitted_inc)), color = "red")+
+  geom_line(aes(date, log(monthly_inc)), col = "black")+
+  geom_line(aes(date, log(fitted_inc)), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Log Monthly DHF Incidence")+
+  labs(title = "Cai Lay District", subtitle = "Model run to predict August 2007, Log Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_aug_2007 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_point(aes(date, fitted), color = "red")+
+  geom_line(aes(date, m_DHF_cases), col = "black")+
+  geom_line(aes(date, fitted), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Monthly DHF Cases")+
+  labs(title = "Phu Tan An Giang", subtitle = "Model run to predict August 2007")
+
+model_check_aug_2007 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_point(aes(date, fitted_inc), color = "red")+
+  geom_line(aes(date, monthly_inc), col = "black")+
+  geom_line(aes(date, fitted_inc), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Monthly DHF Incidence")+
+  labs(title = "Phu Tan An Giang", subtitle = "Model run to predict August 2007, Incidence per 100,000")
+
+model_check_aug_2007 %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, log(monthly_inc)), col = "black")+
+  geom_point(aes(date, log(fitted_inc)), color = "red")+
+  geom_line(aes(date, log(monthly_inc)), col = "black")+
+  geom_line(aes(date, log(fitted_inc)), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Log Monthly DHF Incidence")+
+  labs(title = "Phu Tan An Giang", subtitle = "Model run to predict August 2007, Log Incidence per 100,000")
+
+```
+
+## Mod fit just intercept
+```{r, message=FALSE, warning=FALSE, tidy=TRUE, fig.show='hold', out.width="50%"}
+base_model_aug_2007 <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(8))) %>%
+  arrange(year, month, VARNAME_2) %>%
+  mutate(t = row_number())
+
+# model output
+mod_fit_intercept <- as.data.frame(fit$fitted.values)
+mod_fit_intercept <- mod_fit_intercept %>%
+  mutate(t = row_number(), 
+         fitted = fit$fitted.values) 
+
+# join to base model
+model_check_intercept <- left_join(base_model_aug_2007,  mod_fit_intercept, by = c("t" = "t"))
+
+
+# calculate incidence
+model_check_intercept <- model_check_intercept %>%
+  group_by(VARNAME_2, year, month) %>%
+  mutate(monthly_inc = (m_DHF_cases/pop)*100,000, 
+         fitted_inc = (fitted/pop)*100,000)
+
+# Vinh Hung
+model_check_intercept %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_point(aes(date, fitted), color = "red")+
+  geom_line(aes(date, m_DHF_cases), col = "black")+
+  geom_line(aes(date, fitted), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Monthly DHF Cases")+
+  labs(title = "Vinh Hung", subtitle = "Intercept model run to predict August 2007")
+
+model_check_intercept %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_point(aes(date, fitted), color = "red")+
+  geom_line(aes(date, m_DHF_cases), col = "black")+
+  geom_line(aes(date, fitted), color = "red")+
+  theme_classic()+
+  ylim(0,20)+
+  xlab("Date")+
+  ylab("Monthly DHF Cases")+
+  labs(title = "Vinh Hung", subtitle = "Intercept model run to predict August 2007")
+
+model_check_intercept %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_point(aes(date, fitted_inc), color = "red")+
+  geom_line(aes(date, monthly_inc), col = "black")+
+  geom_line(aes(date, fitted_inc), color = "red")+
+  theme_classic()+
+  ylim(0,0.05)+
+  xlab("Date")+
+  ylab("Monthly DHF Incidence")+
+  labs(title = "Vinh Hung", subtitle = "Intercept model run to predict August 2007, Incidence per 100,000")
+
+model_check_intercept %>%
+  filter(VARNAME_2 == "Vinh Hung") %>%
+  ggplot()+
+  geom_point(aes(date, log(monthly_inc)), col = "black")+
+  geom_point(aes(date, log(fitted_inc)), color = "red")+
+  geom_line(aes(date, log(monthly_inc)), col = "black")+
+  geom_line(aes(date, log(fitted_inc)), color = "red")+
+  theme_classic()+
+  ylim(-15,5)+
+  xlab("Date")+
+  ylab("Log Monthly DHF Incidence")+
+  labs(title = "Vinh Hung", subtitle = "Intercept model run to predict August 2007, Log Incidence per 100,000")
+
+# Cai Lay District
+model_check_intercept %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_point(aes(date, fitted), color = "red")+
+  geom_line(aes(date, m_DHF_cases), col = "black")+
+  geom_line(aes(date, fitted), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Monthly DHF Cases")+
+  labs(title = "Cai Lay District", subtitle = "Intercept model run to predict August 2007")
+
+model_check_intercept %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_point(aes(date, fitted), color = "red")+
+  geom_line(aes(date, m_DHF_cases), col = "black")+
+  geom_line(aes(date, fitted), color = "red")+
+  theme_classic()+
+  ylim(0,500)+
+  xlab("Date")+
+  ylab("Monthly DHF Cases")+
+  labs(title = "Cai Lay District", subtitle = "Intercept model run to predict August 2007")
+
+model_check_intercept %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_point(aes(date, fitted_inc), color = "red")+
+  geom_line(aes(date, monthly_inc), col = "black")+
+  geom_line(aes(date, fitted_inc), color = "red")+
+  theme_classic()+
+  ylim(0,0.5)+
+  xlab("Date")+
+  ylab("Monthly DHF Incidence")+
+  labs(title = "Cai Lay District", subtitle = "Intercept model run to predict August 2007, Incidence per 100,000")
+
+model_check_intercept %>%
+  filter(VARNAME_2 == "Cai Lay District") %>%
+  ggplot()+
+  geom_point(aes(date, log(monthly_inc)), col = "black")+
+  geom_point(aes(date, log(fitted_inc)), color = "red")+
+  geom_line(aes(date, log(monthly_inc)), col = "black")+
+  geom_line(aes(date, log(fitted_inc)), color = "red")+
+  theme_classic()+
+  ylim(-15,5)+
+  xlab("Date")+
+  ylab("Log Monthly DHF Incidence")+
+  labs(title = "Cai Lay District", subtitle = "Intercept model run to predict August 2007, Log Incidence per 100,000")
+
+# Phu Tan An Giang
+model_check_intercept %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_point(aes(date, fitted), color = "red")+
+  geom_line(aes(date, m_DHF_cases), col = "black")+
+  geom_line(aes(date, fitted), color = "red")+
+  theme_classic()+
+  xlab("Date")+
+  ylab("Monthly DHF Cases")+
+  labs(title = "Phu Tan An Giang", subtitle = "Intercept model run to predict August 2007")
+
+model_check_intercept %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, m_DHF_cases), col = "black")+
+  geom_point(aes(date, fitted), color = "red")+
+  geom_line(aes(date, m_DHF_cases), col = "black")+
+  geom_line(aes(date, fitted), color = "red")+
+  theme_classic()+
+  ylim(0,100)+
+  xlab("Date")+
+  ylab("Monthly DHF Cases")+
+  labs(title = "Phu Tan An Giang", subtitle = "Intercept model run to predict August 2007")
+
+model_check_intercept %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, monthly_inc), col = "black")+
+  geom_point(aes(date, fitted_inc), color = "red")+
+  geom_line(aes(date, monthly_inc), col = "black")+
+  geom_line(aes(date, fitted_inc), color = "red")+
+  theme_classic()+
+  ylim(0,0.2)+
+  xlab("Date")+
+  ylab("Monthly DHF Incidence")+
+  labs(title = "Phu Tan An Giang", subtitle = "Intercept model run to predict August 2007, Incidence per 100,000")
+
+model_check_intercept %>%
+  filter(VARNAME_2 == "Phu Tan An Giang") %>%
+  ggplot()+
+  geom_point(aes(date, log(monthly_inc)), col = "black")+
+  geom_point(aes(date, log(fitted_inc)), color = "red")+
+  geom_line(aes(date, log(monthly_inc)), col = "black")+
+  geom_line(aes(date, log(fitted_inc)), color = "red")+
+  theme_classic()+
+  ylim(-30,5)+
+  xlab("Date")+
+  ylab("Log Monthly DHF Incidence")+
+  labs(title = "Phu Tan An Giang", subtitle = "Intercept model run to predict August 2007, Log Incidence per 100,000")
+
+```

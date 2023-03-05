@@ -1,0 +1,75 @@
+---
+title: "Mean Absolute Error - Base Model"
+author: "Elisabeth Nelson"
+date: "2023-03-02"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+library(tsibble)
+library(plotly)
+library(lubridate)
+library(TSDT)
+library(rgeos) 
+library(maptools) 
+library(spdep)  
+library(ggmap)  
+library(sf)
+library(rgdal)
+library(gridExtra)
+```
+
+```{r, message=FALSE, warning=FALSE, tidy=TRUE, echo=FALSE}
+
+mae_merged_df <- do.call(rbind, 
+                         lapply(list.files('/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/MAE', 
+                        recursive = TRUE, full.names = TRUE), readRDS))
+saveRDS(mae_merged_df, "base_model_mae.rds")
+
+mae <- mae_merged_df %>%
+  group_by(VARNAME_2) %>%
+  summarize(mae_avg = mean(mae), 
+            geometry = geometry) %>%
+  distinct(VARNAME_2, .keep_all = T)
+
+ggplot(mae)+
+      geom_sf(aes(fill = mae_avg, geometry = geometry), lwd = 0)+
+      viridis::scale_fill_viridis(option = "viridis", 
+                                  direction = -1, 
+                                  name = "MAE", 
+                                  oob = scales::squish)+
+      theme(axis.text.x = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks = element_blank(),
+            panel.background = element_rect(fill = "white", color = NA))+
+      labs(title = "Mean Absolute Error", 
+           subtitle = "By district, using monthly incidence per 100,000 persons")
+
+mae_merged_df %>%
+  group_by(VARNAME_2, month) %>%
+  summarize(mae_avg = mean(mae), 
+            geometry = geometry) %>%
+  distinct(VARNAME_2, month, .keep_all = T) %>%
+  ggplot()+
+      geom_sf(aes(fill = mae_avg, geometry = geometry), lwd = 0)+
+      facet_wrap(~factor(month))+
+      viridis::scale_fill_viridis(option = "viridis", 
+                                  direction = -1, 
+                                  name = "MAE", 
+                                  oob = scales::squish)+
+      theme(axis.text.x = element_blank(),
+            axis.text.y = element_blank(),
+            axis.ticks = element_blank(),
+            panel.background = element_rect(fill = "white", color = NA))+
+      labs(title = "Mean Absolute Error", 
+           subtitle = "By district and month, using monthly incidence per 100,000 persons")
+
+```
