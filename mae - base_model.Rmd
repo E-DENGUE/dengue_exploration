@@ -73,3 +73,14 @@ mae_merged_df %>%
            subtitle = "By district and month, using monthly incidence per 100,000 persons")
 
 ```
+
+## Get single MAE estimate
+```{r}
+
+MAE_full <- readRDS("base_model_mae.rds")
+
+MAE_full %>%
+  ungroup() %>%
+  summarize(mae_avg = mean(mae))
+
+```

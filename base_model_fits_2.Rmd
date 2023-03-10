@@ -1,0 +1,99 @@
+---
+title: "Base Model Fits - Plot 5 Fix"
+author: "Elisabeth Nelson"
+date: "2023-03-06"
+output: pdf_document
+---
+---
+title: "Base Model Fits"
+author: "Elisabeth Nelson"
+date: "2023-03-03"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+library(tsibble)
+library(plotly)
+library(lubridate)
+library(TSDT)
+library(rgeos) 
+library(maptools) 
+library(spdep)  
+library(ggmap)  
+library(sf)
+library(rgdal)
+library(gridExtra)
+```
+
+```{r, include=FALSE}
+## Base Model - Observed Cases
+base_model_final <- readRDS("base_model_final.RDS")
+
+base_model_final_2 <- base_model_final %>%
+  mutate(year = as_factor(year)) %>%
+  filter(VARNAME_2 != "Kien Hai", 
+         VARNAME_2 != "Phu Quoc") %>%
+  distinct(year, month, VARNAME_2, NAME_1, ENGTYPE_2, .keep_all = T) %>%
+  arrange(month, year, VARNAME_2)
+
+```
+
+## Base Model Fitted Values 0-144
+```{r, message=FALSE, warning=FALSE, tidy=TRUE, echo=FALSE, out.width="50%"}
+
+for(i in 0:144){
+  N_advance <- i
+
+display.func <- function(N_advance){
+  # observed cases
+  base_model <- base_model_final_2 %>%
+  mutate(year = unfactor(year), 
+         date = as.Date(paste(year, month, '01', sep='-'))) %>%
+  filter(date <= (as.Date('2006-12-01' ) %m+% months(N_advance))) %>%
+  mutate(t = row_number())
+  
+  # model output
+  post_fit <- readRDS(paste0("Data_2/post_fit_values_", N_advance, ".rds"))
+  
+  post_fit_df <- as.data.frame(post_fit)
+  post_fit_df <- post_fit_df  %>%
+  mutate(t = row_number())
+  
+  # join to base model
+  model_check <- left_join(base_model, post_fit_df, by = c("t" = "t"))
+
+  # calculate incidence
+  model_check <- model_check %>%
+    group_by(VARNAME_2, year, month) %>%
+    mutate(monthly_inc = (m_DHF_cases/pop)*100,000,
+           monthly_inc = if_else(is.na(monthly_inc), 0, monthly_inc),
+         fitted_inc = (post_fit/pop)*100,000, 
+         fitted_inc = if_else(is.na(fitted_inc), 0, fitted_inc))
+
+  plot5 <- model_check %>%
+    filter(date == (as.Date('2006-12-01' ) %m+% months(N_advance))) %>%
+    ggplot()+
+    geom_point(aes(sqrt(monthly_inc), sqrt(fitted_inc)))+
+    theme_classic()+
+    xlab("Observed Monthly Incidence (sqrt)")+
+    ylab("Fitted Monthly Incidence (sqrt)")+
+    labs(title = paste0("Observed vs. Fitted Monthly Incidence", N_advance))
+
+  p1 <- plot5
+  return(p1)
+}
+
+plot(display.func(i))
+
+}
+
+#lapply(0:2, display.func)
+
+
+```

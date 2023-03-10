@@ -168,7 +168,8 @@ display.func(i)
 
 ## MAE Maps for Base Model 0-144
 ```{r, message=FALSE, warning=FALSE, tidy=TRUE, echo=FALSE, fig.show='hold', out.width="50%"}
-
+for(i in 0:144){
+  N_advance <- i
   mae.map.func <- function(N_advance){
     # MAE data
     MAE <- readRDS(paste0("Data_2/MAE_df", N_advance, ".rds"))
@@ -189,8 +190,9 @@ display.func(i)
     
     return(map)
   }
-  
-lapply(0:144, mae.map.func)
+  plot(mae.map.func(i))
+}  
+#lapply(0:144, mae.map.func)
 
 
 
