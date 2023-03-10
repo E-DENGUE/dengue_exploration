@@ -41,11 +41,6 @@ advance_missing_func <- function(N_advance){
     arrange(month, year, VARNAME_2)
 }
 
-samples_to_quant <- function(X){
-  quant1 <- apply(X, 2, quantile, probs=c(0.025, 0.975,seq(0.01, 0.99, by=0.01)))
-  return(quant1)
-} 
-
 mod.func <- function(N_advance) {
   ds <- advance_missing_func(N_advance) 
   
@@ -83,14 +78,11 @@ mod.func <- function(N_advance) {
                     
                     verbose = TRUE)
   
-  # save 1% of fits + 95% CI
-  post_quantiles <- lapply(X = results$samples,FUN = samples_to_quant)
+  # save only fitted values
+  post_fit <- results$fitted.values
   
   # save to a file
-  saveRDS(post_fitted_quant, paste0("posterior_quant_", N_advance,".rds"))
-
+  saveRDS(post_fit, paste0("post_fit_values_", N_advance,".rds"))
+  
   return(0)
 }
-
-
-
