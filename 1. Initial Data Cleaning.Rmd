@@ -15,6 +15,7 @@ library(tidyr)
 library(tidyverse)
 library(tsibble)
 library(plotly)
+library(sf)
 
 ```
 
@@ -143,6 +144,149 @@ complete_pops <- read_csv("Data/CONFIDENTIAL/updated_pop_2.csv",
 complete_pops <- complete_pops %>%
   rename("pop" = "population") %>%
   mutate(VARNAME_2 = str_to_title(VARNAME_2))
+
+```
+
+## Upload Land-Use data
+```{r}
+land_use_2001 <- read_csv("Data/land_use/2001.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2001 <- land_use_2001 %>%
+  mutate(year = 2001)
+
+land_use_2002 <- read_csv("Data/land_use/2002.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2002 <- land_use_2002 %>%
+  mutate(year = 2002)
+
+land_use_2003 <- read_csv("Data/land_use/2003.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2003 <- land_use_2003 %>%
+  mutate(year = 2003)
+
+land_use_2004 <- read_csv("Data/land_use/2004.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2004 <- land_use_2004 %>%
+  mutate(year = 2004)
+
+land_use_2005 <- read_csv("Data/land_use/2005.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2005 <- land_use_2005 %>%
+  mutate(year = 2005)
+
+land_use_2006 <- read_csv("Data/land_use/2006.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2006 <- land_use_2006 %>%
+  mutate(year = 2006)
+
+land_use_2007 <- read_csv("Data/land_use/2007.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2007 <- land_use_2007 %>%
+  mutate(year = 2007)
+
+land_use_2008 <- read_csv("Data/land_use/2008.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2008 <- land_use_2008 %>%
+  mutate(year = 2008)
+
+land_use_2009 <- read_csv("Data/land_use/2009.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2009 <- land_use_2009 %>%
+  mutate(year = 2009)
+
+land_use_2010 <- read_csv("Data/land_use/2010.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2010 <- land_use_2010 %>%
+  mutate(year = 2010)
+
+land_use_2011 <- read_csv("Data/land_use/2011.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2011 <- land_use_2011 %>%
+  mutate(year = 2011)
+
+land_use_2012 <- read_csv("Data/land_use/2012.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2012 <- land_use_2012 %>%
+  mutate(year = 2012)
+
+land_use_2013 <- read_csv("Data/land_use/2013.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2013 <- land_use_2013 %>%
+  mutate(year = 2013)
+
+land_use_2014 <- read_csv("Data/land_use/2014.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2014 <- land_use_2014 %>%
+  mutate(year = 2014)
+
+land_use_2015 <- read_csv("Data/land_use/2015.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2015 <- land_use_2015 %>%
+  mutate(year = 2015)
+
+land_use_2016 <- read_csv("Data/land_use/2016.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2016 <- land_use_2016 %>%
+  mutate(year = 2016)
+
+land_use_2017 <- read_csv("Data/land_use/2017.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2017 <- land_use_2017 %>%
+  mutate(year = 2017)
+
+land_use_2018 <- read_csv("Data/land_use/2018.csv", 
+    col_types = cols(...1 = col_number(), 
+        Dominant_LU_index_1 = col_number(), 
+        Dominant_LU_index_1_percent = col_number()))
+land_use_2018 <- land_use_2018 %>%
+  mutate(year = 2018)
+
+# bind into one data frame
+land_use <- rbind(land_use_2001, land_use_2002, land_use_2003, land_use_2004, 
+                  land_use_2005, land_use_2006, land_use_2007, land_use_2008, 
+                  land_use_2009, land_use_2010, land_use_2011, land_use_2012, 
+                  land_use_2013, land_use_2014, land_use_2015, land_use_2016, 
+                  land_use_2017, land_use_2018)
+
+# save as RDS
+#saveRDS(land_use, "Data/land_use/combined_land_use.rds")
+
+# re-upload 
+#land_use <- readRDS("Data/land_use/combined_land_use.rds")
 
 ```
 
@@ -351,6 +495,15 @@ MDR_Dengue_map <- MDR_Dengue_map_1 %>%
 
 MDR_Dengue_map <- MDR_Dengue_map %>%
   mutate(log_DHF_incidence = ifelse(log_DHF_incidence == -Inf, 0, log_DHF_incidence))
+
+# join land_use data 
+MDR_Dengue_map_2 <- left_join(MDR_Dengue_map, land_use, by = c("VARNAME_2" = "VARNAME_2", "year" = "year"))
+    # Kien Hai is NA because there is no land use data for this district
+
+# rename and get rid of unecessary column
+MDR_Dengue_map <- MDR_Dengue_map_2 %>%
+  select(-("...1"))
+
 
 #g <- ggplot(data = MDR_Dengue_map)+
   geom_sf(aes(fill = total_DHF_cases, names = VARNAME_2), color = "black", size = 0.25)+

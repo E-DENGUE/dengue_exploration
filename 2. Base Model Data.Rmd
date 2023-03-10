@@ -151,6 +151,12 @@ agg3 <- agg2 %>%
   select(!(geometry.x)) %>%
   rename("geometry" = geometry.y)
 
+# upload MDR_2
+MDR_2 <- st_read(dsn = '/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/MDR Updated map/VMD_districts_2022.shp')
+MDR_2 %>%
+  mutate(MDR_2, VARNAME_2 = as.character(VARNAME_2)) %>%
+  mutate(MDR_2, ENGTYPE_2 = as.character(ENGTYPE_2)) 
+
 missing_long_my <- MDR_2$geometry[MDR_2$NAME_2 == "Long Mỹ (Thị xã)"]
 
 agg3$geometry[agg3$VARNAME_2 == "Long My Town"] <- missing_long_my
