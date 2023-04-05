@@ -504,7 +504,6 @@ MDR_Dengue_map_2 <- left_join(MDR_Dengue_map, land_use, by = c("VARNAME_2" = "VA
 MDR_Dengue_map <- MDR_Dengue_map_2 %>%
   select(-("...1"))
 
-
 #g <- ggplot(data = MDR_Dengue_map)+
   geom_sf(aes(fill = total_DHF_cases, names = VARNAME_2), color = "black", size = 0.25)+
   scale_fill_distiller(name = "DHF Cases", 
