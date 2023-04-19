@@ -286,6 +286,35 @@ ppt_model <- climate_model %>%
          lag_5_tp = if_else(is.na(lag_5_tp), 0, lag_5_tp), 
          lag_6_tp = if_else(is.na(lag_6_tp), 0, lag_6_tp))
 
+climate_model <- climate_model %>%
+  group_by(VARNAME_2) %>%
+  mutate(lag_1_rh = lag(rh, 1), 
+         lag_2_rh = lag(rh, 2), 
+         lag_3_rh = lag(rh, 3), 
+         lag_4_rh = lag(rh, 4), 
+         lag_5_rh = lag(rh, 5), 
+         lag_6_rh = lag(rh, 6)) %>%
+  mutate(rh = if_else(is.na(rh), 0, rh), 
+         lag_1_rh = if_else(is.na(lag_1_rh), 0, lag_1_rh), 
+         lag_2_rh = if_else(is.na(lag_2_rh), 0, lag_2_rh), 
+         lag_3_rh = if_else(is.na(lag_3_rh), 0, lag_3_rh), 
+         lag_4_rh = if_else(is.na(lag_4_rh), 0, lag_4_rh), 
+         lag_5_rh = if_else(is.na(lag_5_rh), 0, lag_5_rh), 
+         lag_6_rh = if_else(is.na(lag_6_rh), 0, lag_6_rh)) %>%
+  mutate(lag_1_tp = lag(tp, 1), 
+         lag_2_tp = lag(tp, 2), 
+         lag_3_tp = lag(tp, 3), 
+         lag_4_tp = lag(tp, 4), 
+         lag_5_tp = lag(tp, 5), 
+         lag_6_tp = lag(tp, 6)) %>%
+  mutate(tp = if_else(is.na(tp), 0, tp), 
+         lag_1_tp = if_else(is.na(lag_1_tp), 0, lag_1_tp), 
+         lag_2_tp = if_else(is.na(lag_2_tp), 0, lag_2_tp), 
+         lag_3_tp = if_else(is.na(lag_3_tp), 0, lag_3_tp), 
+         lag_4_tp = if_else(is.na(lag_4_tp), 0, lag_4_tp), 
+         lag_5_tp = if_else(is.na(lag_5_tp), 0, lag_5_tp), 
+         lag_6_tp = if_else(is.na(lag_6_tp), 0, lag_6_tp))
+
 ## save as RDS
 saveRDS(climate_model, "Data/climate/climate_model.rds")
 saveRDS(temp_model, "Data/climate/temp_model.rds")
