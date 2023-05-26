@@ -150,7 +150,7 @@ display.func <- function(N_advance){
   mae_df <- model_check %>%
   filter(date == (as.Date('2006-12-01' ) %m+% months(N_advance))) %>%
   mutate(mae = abs(monthly_inc - fitted_inc))
-  saveRDS(mae_df, paste0("Data_5/ppt2_MAE_df", N_advance, ".rds"))
+  saveRDS(mae_df, paste0("Data_3/ppt2_MAE_df", N_advance, ".rds"))
   
   #p1 <- grid.arrange(plot1, plot2, plot3, plot4, plot5, ncol = 2, nrow = 3)
   #return(p1)
@@ -168,7 +168,7 @@ display.func(i)
 ```{r, message=FALSE, warning=FALSE, tidy=TRUE, echo=FALSE}
 
 mae_merged_df <- do.call(rbind, 
-                         lapply(list.files('/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data_5', 
+                         lapply(list.files('/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data_3', 
                         recursive = TRUE, full.names = TRUE), readRDS))
 saveRDS(mae_merged_df, "ppt2_model_mae.rds")
 
