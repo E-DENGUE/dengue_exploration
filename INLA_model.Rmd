@@ -26,7 +26,7 @@ prior_hyper<-list(theta = list(prior = "normal", param = c(0.00, (1.00/(100.00^2
 # Start the clock!
 ptm <- proc.time()
 
-inla.out <- inla(formula1, family = "nbinomial", data = b1 ),
+inla.out <- inla(formula1, family = "nbinomial", data = b1,
                  control.fixed = prior_fixed,
                  control.family = list(hyper = prior_hyper),
                  control.compute = list(dic = TRUE,
