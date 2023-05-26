@@ -1,0 +1,52 @@
+---
+title: "INLA Model"
+author: "Elisabeth Nelson"
+date: "2023-05-26"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Model from Dan
+
+```{r}
+
+formula1 <- N_deaths ~  1+ #intercept
+  offset(log.offset) +
+  rain +
+  f(index_date,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))
+
+prior_fixed<-list(mean.intercept = 0.00, prec.intercept = (1.00/(100.00^2)))  #\beta_0 ~ N(0.00, 100.00^2)
+
+prior_hyper<-list(theta = list(prior = "normal", param = c(0.00, (1.00/(100.00^2)))))  #ln(r) ~ #N(0.00, 100.00^2)
+
+# Run model
+# Start the clock!
+ptm <- proc.time()
+
+inla.out <- inla(formula1, family = "nbinomial", data = b1 ),
+                 control.fixed = prior_fixed,
+                 control.family = list(hyper = prior_hyper),
+                 control.compute = list(dic = TRUE,
+                                        waic = TRUE,
+                                        config = TRUE,
+                                        return.marginals.predictor = TRUE)
+                 )
+
+# Stop the clock
+proc.time() - ptm
+
+
+test1 <-inla.posterior.sample(1000, inla.out)
+
+sample.ds1 <- sapply(test1, function(x){
+  preds <- x$latent[,1]
+  return(preds)
+}, simplify='array') %>%
+  as.data.frame() %>%
+  filter(grepl('Predictor',row.names(.)))
+
+
+```
