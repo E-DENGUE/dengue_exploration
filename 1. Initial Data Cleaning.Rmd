@@ -292,7 +292,7 @@ land_use <- rbind(land_use_2001, land_use_2002, land_use_2003, land_use_2004,
 
 ## Upload Province Map
 ```{r}
-MDR_2 <- st_read(dsn = '/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/MDR Updated map/VMD_districts_2022.shp')
+MDR_2 <- st_read(dsn = './Data/MDR Updated map/VMD_districts_2022.shp')
 
 MDR_2 %>%
   mutate(MDR_2, VARNAME_2 = as.character(VARNAME_2)) %>%

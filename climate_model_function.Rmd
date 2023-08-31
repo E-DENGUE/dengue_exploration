@@ -122,7 +122,7 @@ for(i in district_list){
 
 ## combine all files
 monthly_climate <- do.call(rbind, 
-                         lapply(list.files('/Users/zoe/Documents/Yale EMD/Rotation 1/Dengue - Vietnam/dengue_exploration/Data/climate/district_climate_1', 
+                         lapply(list.files('./Data/climate/district_climate_1', 
                          recursive = TRUE, full.names = TRUE), readRDS))
 
 monthly_climate <- monthly_climate %>%
