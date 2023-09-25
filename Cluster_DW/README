@@ -1,0 +1,15 @@
+Notes:
+
+1) if mod1.sh is created or modified on a Windows machine, you will get an error. In the terminal on the cluster, run:
+dos2unix mod1.sh
+
+2) To install INLA on the HPC:
+> install.packages("INLA",repos=c(getOption("repos"),INLA="https://inla.r-inla-download.org/R/testing"), dep=TRUE)
+
+>library(INLA)
+
+> options(timeout=300)
+
+> inla.binary.install()
+
+>library (INLA)
